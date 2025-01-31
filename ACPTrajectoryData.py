@@ -51,13 +51,15 @@ class ACPData:
 
     def __init__(self,acpnamelist:ACPTrajectoryNamelist.ACPNamelist):
         """Initialize ACPData"""
-        self._init_vars()
+        if acpnamelist.vars.verbose: print('Initializing ACP data class')
+        self._init_vars(acpnamelist)
         self._init_dirs(acpnamelist)
         self._read_spatial_data(acpnamelist)
         self._read_nutrient_and_ec_data(acpnamelist)
 
-    def _init_vars(self):
+    def _init_vars(self,acpnamelist:ACPTrajectoryNamelist.ACPNamelist):
         """Initialize class variables"""
+        if acpnamelist.vars.verbose: print('Initializing variables')
         self.miscstats    = ACPData.MiscStats()
         self.spatialdata  = ACPData.SpatialData()
         self.nutrientdata = ACPData.NutrientData()
@@ -65,7 +67,8 @@ class ACPData:
         self.swatoutvars  = ACPData.SWATOutputVariables()
         
     def _init_dirs(self,acpnamelist:ACPTrajectoryNamelist.ACPNamelist):
-        """Create directories"""
+        """Make project directories"""
+        if acpnamelist.vars.verbose: print('Making project directories')
         if not os.path.isdir(acpnamelist.dirnames.project): 
             os.mkdir(acpnamelist.dirnames.project)
         if not os.path.isdir(acpnamelist.dirnames.county_boundary): 
@@ -80,7 +83,8 @@ class ACPData:
             os.mkdir(acpnamelist.dirnames.output)
         
     def _read_spatial_data(self,acpnamelist:ACPTrajectoryNamelist.ACPNamelist):
-        """Read spatial data"""
+        """Make or read spatial data"""
+        if acpnamelist.vars.verbose: print('Making or reading project spatial data')
         self._setDomain(acpnamelist)
         self._setCounties(acpnamelist)
         self._setFieldBoundaries(acpnamelist)
@@ -89,19 +93,23 @@ class ACPData:
 
     def _read_nutrient_and_ec_data(self,acpnamelist:ACPTrajectoryNamelist.ACPNamelist):
         """Read baseline nutrient data and ACP effectiveness coefficients (ECs)"""
+        if acpnamelist.vars.verbose: print('Reading baseline nutrient data and ACP effectiveness coefficients')
         self._readBaselineNutrientYields_ACRE(acpnamelist)
         self._readSWATSimulations(acpnamelist)
-        self._setBaselineNutrientYieldDistributions_SWAT()
+        self._setBaselineNutrientYieldDistributions_SWAT(acpnamelist)
         self._readECs_ACRE(acpnamelist)
-        self._setECDistributions_ACRE()
+        self._setECDistributions_ACRE(acpnamelist)
         
     def _setDomain(self,acpnamelist:ACPTrajectoryNamelist.ACPNamelist):
-        """Set/read domain boundary info gdf"""
+        """Make or read domain spatial boundary"""
+        if acpnamelist.vars.verbose: print('Making or reading domain spatial boundary')
         if os.path.isfile(acpnamelist.fnames.domain) and not acpnamelist.vars.overwrite_flag:
+            if acpnamelist.vars.verbose: print('    Reading: '+acpnamelist.fnames.domain)
             self.spatialdata.domain = geopandas.read_file(acpnamelist.fnames.domain)
             self.spatialdata.domain[acpnamelist.varnames.area_ha] = self.spatialdata.domain.to_crs({'proj':'cea'})['geometry'].area * 0.0001 #confirm units are ha
             self.miscstats.domain_area_ha = float(self.spatialdata.domain[acpnamelist.varnames.area_ha].item())
         else:
+            if acpnamelist.vars.verbose: print('    Making: '+acpnamelist.fnames.domain)
             self.spatialdata.domain_huc12s = pygeohydro.WBD("huc12").byids("huc12", acpnamelist.vars.input_huc12_ids)
             self.spatialdata.domain_huc12s.to_file(acpnamelist.fnames.hucs,driver='GPKG')
             self.spatialdata.domain_huc12s = geopandas.read_file(acpnamelist.fnames.hucs)
@@ -112,9 +120,12 @@ class ACPData:
             
     def _setCounties(self,acpnamelist:ACPTrajectoryNamelist.ACPNamelist):
         """Set/read US county boundaries into gdf"""
+        if acpnamelist.vars.verbose: print('Making or reading US county spatial boundary')
         if os.path.isfile(acpnamelist.fnames.counties) and not acpnamelist.vars.overwrite_flag:
+            if acpnamelist.vars.verbose: print('    Reading: '+acpnamelist.fnames.counties)
             self.spatialdata.domain_counties = geopandas.read_file(acpnamelist.fnames.counties)
         else:
+            if acpnamelist.vars.verbose: print('    Making: '+acpnamelist.fnames.counties)
             ee.Authenticate()
             ee.Initialize(project='simmgmttrajectory')
             us_counties_fc  = ee.FeatureCollection("TIGER/2016/Counties")
@@ -127,11 +138,14 @@ class ACPData:
             
     def _setFieldBoundaries(self,acpnamelist:ACPTrajectoryNamelist.ACPNamelist):
         """Set/read field boundaries into gdf"""
+        if acpnamelist.vars.verbose: print('Processing or reading field spatial boundary')
         if os.path.isfile(acpnamelist.fnames.fields) and not acpnamelist.vars.overwrite_flag:
+            if acpnamelist.vars.verbose: print('    Processing: '+acpnamelist.fnames.fields)
             self.spatialdata.domain_fields = geopandas.read_file(acpnamelist.fnames.fields)
             self.miscstats.dt_fips_key_fieldid = dict(zip(self.spatialdata.domain_fields['field_id'],self.spatialdata.domain_fields['FIPS']))
             self.miscstats.dt_areaha_key_fieldid = dict(zip(self.spatialdata.domain_fields['field_id'],self.spatialdata.domain_fields[acpnamelist.varnames.area_ha]))
         else:
+            if acpnamelist.vars.verbose: print('    Making: '+acpnamelist.fnames.fields)
             fields_dfs = list()
             for _,r in self.spatialdata.domain_counties.iterrows():
                 dirstate = os.path.join(acpnamelist.vars.input_fields,str(us.states.lookup(str(r['STATE_NAME']).title()).abbr).lower())
@@ -150,9 +164,12 @@ class ACPData:
     
     def _setHRUBoundaries(self,acpnamelist:ACPTrajectoryNamelist.ACPNamelist):
         """Set/read HRU boundaries into gdf"""
+        if acpnamelist.vars.verbose: print('Making or reading HRU spatial boundary')
         if os.path.isfile(acpnamelist.fnames.hrus) and not acpnamelist.vars.overwrite_flag:
+            if acpnamelist.vars.verbose: print('    Reading: '+acpnamelist.fnames.hrus)
             self.spatialdata.domain_hrus = geopandas.read_file(acpnamelist.fnames.hrus)
         else:
+            if acpnamelist.vars.verbose: print('    Making: '+acpnamelist.fnames.hrus)
             hru_dfs = list()
             for fname_swathru in acpnamelist.vars.input_hru_shps:
                 df = geopandas.read_file(fname_swathru)
@@ -170,11 +187,14 @@ class ACPData:
         
     def _evalHRUFieldOverlap(self,acpnamelist:ACPTrajectoryNamelist.ACPNamelist):
         """Determine the areal-dominant HRU for each field"""
+        if acpnamelist.vars.verbose: print('Reading or assessing areal dominant HRU for each field')
         if os.path.isfile(acpnamelist.fnames.field_hrugis) and not acpnamelist.vars.overwrite_flag:
+            if acpnamelist.vars.verbose: print('    Reading: '+acpnamelist.fnames.field_hrugis)
             ls = list(open(acpnamelist.fnames.field_hrugis,'r'))
             ls = [l.replace('\n','').split(',') for l in ls] 
             self.miscstats.dtHRUGISKeyFieldID = {int(ls[i][0]):str(ls[i][1]) for i in range(1,len(ls))}
         else:
+            if acpnamelist.vars.verbose: print('    Making: '+acpnamelist.fnames.field_hrugis)
             domain_fields_overlay = geopandas.overlay(self.spatialdata.domain_fields, self.spatialdata.domain_hrus.to_crs(self.spatialdata.domain_fields.crs), how='intersection')
             max_area_rows = domain_fields_overlay.groupby("field_id")["Area"].idxmax()
             domain_fields_overlay = domain_fields_overlay.loc[max_area_rows]
@@ -186,6 +206,7 @@ class ACPData:
     
     def _readBaselineNutrientYields_ACRE(self,acpnamelist:ACPTrajectoryNamelist.ACPNamelist):
         """Read mean annual simulations from ACRE inputs"""
+        if acpnamelist.vars.verbose: print('Reading baseline nutrient yields from ACRE data')
         csv_fips = os.path.join(acpnamelist.dirnames.acre_data,'FIPS')+'.csv'
         _, file_ext = os.path.splitext(csv_fips)
         if file_ext.find('csv') != -1: df_fips = pandas.read_csv(filepath_or_buffer=csv_fips)
@@ -193,6 +214,7 @@ class ACPData:
         for i,r in self.spatialdata.domain_counties.iterrows():
             dir_state = os.path.join(acpnamelist.dirnames.acre_data,str(r['STATE_NAME']).title())
             csv_file_county = os.path.join(dir_state,str(r['NAME']).title())+'.csv'
+            if acpnamelist.vars.verbose: print('    Reading: '+csv_file_county)
             _, file_ext = os.path.splitext(os.path.join(acpnamelist.dirnames.acre_data,dir_state,csv_file_county))
             if file_ext.find('csv') != -1:
                 df = pandas.read_csv(filepath_or_buffer=csv_file_county)
@@ -206,13 +228,16 @@ class ACPData:
     def _readSWATSimulations(self,acpnamelist:ACPTrajectoryNamelist.ACPNamelist): 
         """Read mean annual simulations from input swat output.hru files"""
         ## TO DO - refactor to exclude study area specific code - i.e., LEFW, UEFW, etc.
+        if acpnamelist.vars.verbose: print('Reading baseline nutrient yields from SWAT data')
         if os.path.isfile(acpnamelist.fnames.swatsims):
+            if acpnamelist.vars.verbose: print('    Reading: '+acpnamelist.fnames.swatsims)
             self.nutrientdata.swatsims = pandas.read_csv(acpnamelist.fnames.swatsims)
             self.nutrientdata.swatsims.set_index('HRUGIS',inplace=True)
         else:
             dfs = list()
             for fname in acpnamelist.vars.input_swat_outputs:
                 if fname.find('notill') == -1:
+                    if acpnamelist.vars.verbose: print('    Reading: '+fname)
                     ls = list(open(fname,'r'))
                     dt = {'HRUGIS':[10,20],'MON':[30,34],'AREAkm2':[34,45],'ORGNkg/ha':[114,125],'ORGPkg/ha':[124,135],'NSURQkg/ha':[144,155],'NLATQkg/ha':[154,165],'NO3Lkg/ha':[164,175],'NO3GWkg/ha':[174,185],'SOLPkg/ha':[184,195]}
                     vs = {name:list() for name in dt}
@@ -231,10 +256,12 @@ class ACPData:
             self.nutrientdata.swatsims = pandas.concat(dfs)
             self.nutrientdata.swatsims.set_index('HRUGIS',inplace=True)
             self.nutrientdata.swatsims.rename(columns={'ORGNkg/ha':'ORGN','ORGPkg/ha':'ORGP','NSURQkg/ha':'NSURQ','NLATQkg/ha':'NLAT','NO3GWkg/ha':'GWQN','SOLPkg/ha':'SOLP'},inplace=True)
+            if acpnamelist.vars.verbose: print('    Making: '+acpnamelist.fnames.swatsims)
             self.nutrientdata.swatsims.to_csv(acpnamelist.fnames.swatsims,index=True)
     
-    def _setBaselineNutrientYieldDistributions_SWAT(self):
+    def _setBaselineNutrientYieldDistributions_SWAT(self,acpnamelist:ACPTrajectoryNamelist.ACPNamelist):
         """Set/create statistical distribution objects using SWAT simulated nutrient yields form agricultural HRUs"""
+        if acpnamelist.vars.verbose: print('Making statistical distribution objects for baseline nutrient yields from SWAT simulations')
         self.nutrientdata.baseline_distributions_SWAT = dict()
         if 'LU_CODE' not in list(self.nutrientdata.swatsims.columns):
             if self.nutrientdata.swatsims.index.name != 'HRUGIS': self.nutrientdata.swatsims.set_index('HRUGIS',inplace=True)
@@ -254,11 +281,13 @@ class ACPData:
 
     def _readECs_ACRE(self,acpnamelist:ACPTrajectoryNamelist.ACPNamelist):
         """Read effectiveness coefficient distributions from ACRE directory"""
+        if acpnamelist.vars.verbose: print('Reading effectiveness coefficients from ACRE data')
         dfs = list()
         for acp in ['CONSERVATION','Contour Farming','Fert 75%','Fert 90%','Filterstrip','MIN_TILL','Ponds 50%','Ponds 75%','Terraces And Waterway','Terraces Only','Waterway Only']:
             csv_acp = os.path.join(acpnamelist.dirnames.acre_data,acp)+'.csv'
             _, file_ext = os.path.splitext(csv_acp)
             if file_ext.find('csv') != -1:
+                if acpnamelist.vars.verbose: print('    Reading: '+csv_acp)
                 df = pandas.read_csv(filepath_or_buffer=csv_acp)
                 df['ACP'] = acp
                 dfs.append(df)
@@ -267,6 +296,7 @@ class ACPData:
         csv_acp = os.path.join(acpnamelist.dirnames.acre_data,'Simple_con')+'.csv'
         _, file_ext = os.path.splitext(csv_acp)
         if file_ext.find('csv') != -1:
+            if acpnamelist.vars.verbose: print('    Reading: '+csv_acp)
             self.ecs.ecs_ACRE_simple = pandas.read_csv(filepath_or_buffer=csv_acp)
             self.ecs.ecs_ACRE_simple = self.ecs.ecs_ACRE_simple.rename(columns={"Practice": "ACP","Constituent": "Parm","min": "pct_1","median": "pct_50","max": "pct_100"})
             self.ecs.ecs_ACRE_simple['pct_1'] = self.ecs.ecs_ACRE_simple['pct_1']/100
@@ -274,8 +304,9 @@ class ACPData:
             self.ecs.ecs_ACRE_simple['pct_100'] = self.ecs.ecs_ACRE_simple['pct_100']/100
         self.miscstats.acp_types = list(set(list(self.ecs.ecs_ACRE['ACP'].unique())+list(self.ecs.ecs_ACRE_simple['ACP'].unique())))
 
-    def _setECDistributions_ACRE(self):
-        """Create effectiveness coefficient distribution objects per ACP-type, county, and nutrient form and loss pathway"""
+    def _setECDistributions_ACRE(self,acpnamelist:ACPTrajectoryNamelist.ACPNamelist):
+        """Make effectiveness coefficient distribution objects per ACP-type, county, and nutrient form and loss pathway"""
+        if acpnamelist.vars.verbose: print('Making statistical distribution objects for effectiveness coefficients from ACRE data')
         self.ecs.ec_distributions_ACRE = dict()
         v_pcts = [.01,.05,.25,.50,.75,.95,1]
         for acp in list(self.ecs.ecs_ACRE['ACP'].unique()):

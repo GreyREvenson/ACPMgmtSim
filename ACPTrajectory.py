@@ -96,5 +96,5 @@ class ACPTrajectorySet:
         """Initialize set of ACP trajectories"""
         self.name = name
         self.traj_buck = list()
-        for i in range(len(n_trajectories)):
+        for i in range(n_trajectories):
             self.traj_buck.append(ACPTrajectory(name=name+str(i+1),acpdata=acpdata,baseline_method=baseline_method,ec_method=ec_method,n_acps=n_acps))

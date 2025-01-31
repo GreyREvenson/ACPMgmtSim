@@ -31,6 +31,7 @@ class ACPNamelist:
     class Variables:
         """Variables"""
         overwrite_flag     = False
+        verbose            = False
         input_huc12_ids    = numpy.nan
         input_hru_shps     = numpy.nan
         input_swat_outputs = numpy.nan
@@ -113,6 +114,7 @@ class ACPNamelist:
         name_swat_hru_spatial = 'swat_hru_spatial_boundary_files'
         name_field_bounds     = 'field_boundary_directory'
         name_overwrite        = 'intermediate_overwrite'
+        name_verbose          = 'verbose'
         req = [name_huc12s,name_project_dir,name_acre_dir,name_swat_outputs,name_swat_hru_spatial,name_field_bounds]
         for name in req:
             if name not in self.vars.file_inputs:
@@ -125,3 +127,5 @@ class ACPNamelist:
         self.vars.input_fields = self.vars.file_inputs[name_field_bounds]
         if name_overwrite in self.vars.file_inputs and self.vars.file_inputs[name_overwrite].upper().find('TRUE') != -1:
             self.vars.overwrite_flag = True
+        if name_verbose in self.vars.file_inputs and self.vars.file_inputs[name_verbose].upper().find('TRUE') != -1:
+            self.vars.verbose = True
