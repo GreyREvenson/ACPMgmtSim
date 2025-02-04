@@ -7,6 +7,7 @@ class ACPTrajectory:
         """Individual ACP attributes. List index = ACP number. Note lists will later be converted to numpy array"""
 
         def __init__(self):
+            """init records"""
             self.acp_type                   = list()
             self.county_fip                 = list()
             self.field_id                   = list()
@@ -23,7 +24,9 @@ class ACPTrajectory:
 
     class NutrientFormPathwayRecords:
         """Nutrient form and pathway load reduction calculation records - acp_number is related to the list index in TrajectoryRecords"""
+
         def __init__(self):
+            """init records"""
             self.acp_number                 = list()
             self.nutrient_form_pathway      = list()
             self.baseline_yield_kgha        = list()
@@ -130,31 +133,149 @@ class ACPTrajectorySet:
     def __init__(self,name:str,acpdata:ACPTrajectoryData.ACPData,baseline_method:str='acre pdf',ec_method:str='acre',n_trajectories=1,n_acps:int=100):
         """Initialize set of ACP trajectories"""
         self.name = name
+        self.domain_areaha = acpdata.miscstats.domain_area_ha
         self.bucket = list()
         for i in range(n_trajectories):
             self.bucket.append(ACPTrajectory(name=name+str(i+1),acpdata=acpdata,baseline_method=baseline_method,ec_method=ec_method,n_acps=n_acps))
 
-    def graph_delta_tn(self,x_var:str='count'):
+    def graph_delta_tn_tp(self,x_var:str='count'):
         """Make trajectory line graph"""
         if x_var == 'count': 
-            fig,ax = self.graph_delta_tn_xcount()
+            fig = self._graph_delta_tn_tp_xcount()
         elif x_var == 'cost':
-            fig,ax = self.graph_delta_tn_xcost()
+            fig = self._graph_delta_tn_tp_xcost()
+        elif x_var == 'treated area':
+            fig = self._graph_delta_tn_tp_xtreatedarea()
         else:
             sys.exit('ERROR unrecognized x axis variable type')
+        return fig
 
-    def graph_delta_tn_xcost(self):
-        """"Make trajectory line graph; x = cumulative cost (usd), y = cumulative delta TN (kg/yr)"""
+    def _graph_delta_tn_tp_xcost(self):
+        """"Make trajectory line graph"""
         pass
 
-    def graph_delta_tn_xcount(self):
-        """"Make trajectory line graph; x = number of ACPs implemented (count), y = cumulative delta TN (kg/yr)"""
-        fig, ax = matplotlib.pyplot.subplots(1, 1)
-        fig.set_size_inches(10, 10)
+    def _graph_delta_tn_tp_xtreatedarea(self):
+        """"Make trajectory line graph"""
+        fig, (ax1,ax2) = matplotlib.pyplot.subplots(1, 2)
+        fig.set_size_inches(8.5, 5)
         for acp_traj in self.bucket:
-            xs = numpy.arange(start=1,stop=len(acp_traj.trajectory_records.delta_TN_kg_cumulative),dtype=acp_traj.trajectory_records.delta_TN_kg_cumulative.dtype)
-            ys = acp_traj.trajectory_records.delta_TN_kg_cumulative
-            ax.plot(xs,ys)
-            fig.tight_layout()
-        return fig,ax
+            _xs = (acp_traj.trajectory_records.treated_area_ha_cumulative/self.domain_areaha)*100.
+            xs = numpy.insert(_xs,0,0,0)
+            ys = numpy.insert(acp_traj.trajectory_records.delta_TN_kg_cumulative,0,0,0)
+            ax1.plot(xs,ys*-1.)
+        for acp_traj in self.bucket:
+            _xs = (acp_traj.trajectory_records.treated_area_ha_cumulative/self.domain_areaha)*100.
+            xs = numpy.insert(_xs,0,0,0)
+            ys = numpy.insert(acp_traj.trajectory_records.delta_TP_kg_cumulative,0,0,0)
+            ax2.plot(xs,ys*-1.)
+        ax1.set_xlabel('Cumulative treated area (% of Watershed Area)')
+        ax1.set_ylabel('Cumulative TN load reduction (kg/yr)')
+        ax2.set_xlabel('Cumulative treated area (% of Watershed Area)')
+        ax2.set_ylabel('Cumulative TP load reduction (kg/yr)')
+        fig.suptitle('Management trajectory impacts on TN and TP')
+        fig.tight_layout()
+        return fig
 
+    def _graph_delta_tn_tp_xcount(self):
+        """"Make trajectory line graph"""
+        fig, (ax1,ax2) = matplotlib.pyplot.subplots(1, 2)
+        fig.set_size_inches(8.5, 5)
+        for acp_traj in self.bucket:
+            xs = numpy.arange(start=0,stop=len(acp_traj.trajectory_records.delta_TN_kg_cumulative)+1,
+                              dtype=acp_traj.trajectory_records.delta_TN_kg_cumulative.dtype)
+            ys = numpy.insert(acp_traj.trajectory_records.delta_TN_kg_cumulative,0,0,0)
+            ax1.plot(xs,ys*-1.)
+        for acp_traj in self.bucket:
+            xs = numpy.arange(start=0,stop=len(acp_traj.trajectory_records.delta_TP_kg_cumulative)+1,
+                              dtype=acp_traj.trajectory_records.delta_TP_kg_cumulative.dtype)
+            ys = numpy.insert(acp_traj.trajectory_records.delta_TP_kg_cumulative,0,0,0)
+            ax2.plot(xs,ys*-1.)
+        ax1.set_xlabel('Number of ACPs implemented')
+        ax1.set_ylabel('Cumulative TN load reduction (kg/yr)')
+        ax2.set_xlabel('Number of ACPs implemented')
+        ax2.set_ylabel('Cumulative TP load reduction (kg/yr)')
+        fig.suptitle('Management trajectory impacts on TN and TP')
+        fig.tight_layout()
+        return fig
+    
+    def graph_baseline_boxplots(self):
+        """Make baseline yield boxplots"""
+        fig, (ax1,ax2) = matplotlib.pyplot.subplots(1, 2)
+        fig.set_size_inches(8.5, 2.5)
+        xs_tn_kgha, xs_tp_kgha = list(), list()
+        for acp_traj in self.bucket:
+            _xs_tn_kgha = acp_traj.trajectory_records.baseline_TN_kg/acp_traj.trajectory_records.field_area_ha
+            _xs_tp_kgha = acp_traj.trajectory_records.baseline_TP_kg/acp_traj.trajectory_records.field_area_ha
+            xs_tn_kgha = numpy.append(xs_tn_kgha,_xs_tn_kgha)
+            xs_tp_kgha = numpy.append(xs_tp_kgha,_xs_tp_kgha)
+        ax1.boxplot(xs_tn_kgha,vert=False)
+        ax1.set_title('Baseline TN (kg/ha/yr)')
+        ax1.set_yticklabels('')
+        ax2.boxplot(xs_tp_kgha,vert=False)
+        ax2.set_title('Baseline TP (kg/ha/yr)')
+        ax2.set_yticklabels('')
+        fig.suptitle('Field-scale baseline nutrient yields across all management trajectories')
+        fig.tight_layout()
+        return fig
+    
+    def graph_effective_efficiency_boxplots(self):
+        """Make baseline yield boxplots"""
+        fig, (ax1,ax2) = matplotlib.pyplot.subplots(1, 2)
+        fig.set_size_inches(8.5, 2.5)
+        xs_tn_efec, xs_tp_efec = list(), list()
+        for acp_traj in self.bucket:
+            _xs_tn_efec = (acp_traj.trajectory_records.delta_TN_kg/acp_traj.trajectory_records.baseline_TN_kg)*-100.
+            _xs_tp_efec = (acp_traj.trajectory_records.delta_TP_kg/acp_traj.trajectory_records.baseline_TP_kg)*-100.
+            xs_tn_efec = numpy.append(xs_tn_efec,_xs_tn_efec)
+            xs_tp_efec = numpy.append(xs_tp_efec,_xs_tp_efec)
+        ax1.boxplot(xs_tn_efec,vert=False)
+        ax1.set_title('Change in TN (% annual baseline load)')
+        ax1.set_yticklabels('')
+        ax2.boxplot(xs_tp_efec,vert=False)
+        ax2.set_title('Change TP (% annual baseline load)')
+        ax2.set_yticklabels('')
+        fig.suptitle('Field-scale ACP-affected load reductions across all management trajectories')
+        fig.tight_layout()
+        return fig
+    
+    def graph_acp_piechart(self):
+        """Create pie chart of ACP selections"""
+        dt = dict()
+        for acp_trajectory in self.bucket:
+            acps, counts = numpy.unique(acp_trajectory.trajectory_records.acp_type, return_counts=True)
+            for i in range(len(acps)):
+                if acps[i] not in dt:
+                    dt[acps[i]] = list()
+                dt[acps[i]].append(counts[i])
+        _len = max([len(dt[acp]) for acp in dt])
+        for acp in dt:
+            if len(dt[acp]) != _len:
+                for _ in range(_len-len(dt[acp])):
+                    dt[acp].append(0)
+            dt[acp] = numpy.mean(dt[acp])
+        fig, ax = matplotlib.pyplot.subplots(1, 1)
+        fig.set_size_inches(8.5, 5)
+        name_chg = [['Constructed_Wetland','Constructed wetland'],
+                    ['Cover_Crop','Cover crops'],
+                    ['Drain_WM','Drainage water management'],
+                    ['Fert 75%','Fertilizer reduction (75%)'],
+                    ['Fert 90%','Fertilizer reduction (90%)'],
+                    ['MIN_TILL','Minimum tillage'],
+                    ['Riparian_buffer','Riparian buffer'],
+                    ['Ponds 50%','Ponds (50%)'],
+                    ['Ponds 75%','Ponds (75%)'],
+                    ['Contour Farming','Contour farming'],
+                    ['Conservation_Crop_Rotation','Conservation crop rotation'],
+                    ['CONSERVATION','General conservation'],
+                    ['Blind_Inlet','Blind inlet'],
+                    ['two_state_ditch','Two stage ditch'],
+                    ['Waterway Only','Grassed waterway'],
+                    ['Terraces Only','Terraces'],
+                    ['Terraces And Waterway','Terraces and grassed waterways']]
+        for name_pair in name_chg:
+            dt[name_pair[1]] = dt[name_pair[0]]
+            del dt[name_pair[0]]
+        ax.pie(dt.values(),labels=[key+' ('+"{:.2f}".format(dt[key])+')' for key in dt])
+        ax.set_title('Average number of ACPs per trajectory')
+        fig.tight_layout()
+        return fig
