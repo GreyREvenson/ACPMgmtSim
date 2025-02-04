@@ -23,5 +23,5 @@ swat_hru_spatial_boundary_files = 'C:\Users\GEVENSON\Projects\acps\EastForkSWAT\
 intermediate_overwrite = 'False'
 
 # flag to print additional user messages
-verbose = 'True'
+verbose = 'False'
 

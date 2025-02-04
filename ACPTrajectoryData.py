@@ -1,4 +1,4 @@
-import os,sys,scipy,numpy,pandas,geopandas,pygeohydro,ee,geemap,us,random,ACPTrajectoryNamelist
+import os,sys,scipy,numpy,pandas,geopandas,pygeohydro,ee,geemap,us,random,ACPTrajectoryNamelist,folium
 
 class ACPDistributionType(scipy.stats.rv_continuous):
     """Generic customizable distribution class - to be used to define nutrient yield and/or effectiveness coefficient distributions"""
@@ -406,3 +406,25 @@ class ACPData:
         else:
             sys.exit('ERROR unrecognized method type')
         return dt_ecs_parm
+    
+    def get_folium_map(self):
+        domain_centroid = self.spatialdata.domain.to_crs('+proj=cea').centroid.to_crs(self.spatialdata.domain.crs)
+        domain_map = folium.Map([domain_centroid.y.iloc[0],domain_centroid.x.iloc[0]])
+        domainfg = folium.FeatureGroup(name='Domain')
+        for _, r in self.spatialdata.domain.iterrows(): 
+            folium.GeoJson(data=geopandas.GeoSeries(r['geometry']).to_json(),style_function=lambda x: {"color":"black","fillColor": "none"}).add_to(domainfg)
+        countiesfg = folium.FeatureGroup(name='County Boundaries')
+        for _, r in self.spatialdata.domain_counties.iterrows(): 
+            folium.GeoJson(data=geopandas.GeoSeries(r['geometry']).to_json(),style_function=lambda x: {"color":"grey","fill": False}).add_to(countiesfg)
+        fieldsfg = folium.FeatureGroup(name='Field Boundaries')
+        for _, r in self.spatialdata.domain_fields.iterrows(): 
+            folium.GeoJson(data=geopandas.GeoSeries(r['geometry']).to_json(),style_function=lambda x: {"color":"black","fill": False}).add_to(fieldsfg)
+        #hrusfg = folium.FeatureGroup(name='SWAT HRU Boundaries')
+        #for _, r in domain_hrus.iterrows(): 
+        #   folium.GeoJson(data=geopandas.GeoSeries(r['geometry']).to_json(),style_function=lambda x: {"color":"grey","fill": False}).add_to(hrusfg)
+        domainfg.add_to(domain_map)
+        countiesfg.add_to(domain_map)
+        fieldsfg.add_to(domain_map)
+        #hrusfg.add_to(domain_map)
+        folium.LayerControl().add_to(domain_map)
+        return domain_map
