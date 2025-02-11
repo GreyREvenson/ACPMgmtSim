@@ -1,4 +1,4 @@
-import os,sys,numpy
+import os,sys,numpy,re
 
 class ACPNamelist:
     """Class to hold names and user inputs"""
@@ -10,7 +10,7 @@ class ACPNamelist:
         field_boundary  = numpy.nan 
         county_boundary = numpy.nan 
         huc_boundary    = numpy.nan 
-        swat_sims       = numpy.nan 
+        swat            = numpy.nan 
         output          = numpy.nan 
 
     class FileNames:
@@ -22,7 +22,9 @@ class ACPNamelist:
         fields             = numpy.nan
         hrus               = numpy.nan
         field_hrugis       = numpy.nan
-        swatsims           = numpy.nan 
+        swat_output_hru    = numpy.nan 
+        swat_output_rch    = numpy.nan
+        cost               = numpy.nan
         
     class VariableNames:
         """Variable names"""
@@ -30,13 +32,15 @@ class ACPNamelist:
 
     class Variables:
         """Variables"""
-        overwrite_flag     = False
-        verbose            = False
-        input_huc12_ids    = numpy.nan
-        input_hru_shps     = numpy.nan
-        input_swat_outputs = numpy.nan
-        input_fields       = numpy.nan
-        file_inputs        = numpy.nan
+        overwrite_flag        = False
+        verbose               = False
+        input_huc12_ids       = numpy.nan
+        input_hru_shps        = numpy.nan
+        input_swat_output_hru = numpy.nan
+        input_swat_output_rch = numpy.nan
+        input_fields          = numpy.nan
+        file_inputs           = numpy.nan
+        acp_types             = numpy.nan
 
     def __init__(self,fname_namelist:str):
         """Initialize namelist"""
@@ -62,7 +66,7 @@ class ACPNamelist:
         self.dirnames.county_boundary = os.path.join(self.dirnames.project,'Counties')
         self.dirnames.field_boundary  = os.path.join(self.dirnames.project,'Fields')
         self.dirnames.huc_boundary    = os.path.join(self.dirnames.project,'HUCs')
-        self.dirnames.swat_sims       = os.path.join(self.dirnames.project,'SWAT')
+        self.dirnames.swat            = os.path.join(self.dirnames.project,'SWAT')
         self.dirnames.output          = os.path.join(self.dirnames.project,'Output')
 
     def _set_static_file_names(self):
@@ -71,9 +75,26 @@ class ACPNamelist:
         self.fnames.hucs         = os.path.join(self.dirnames.huc_boundary,   'hucs.gpkg')
         self.fnames.counties     = os.path.join(self.dirnames.county_boundary,'us_counties.gpkg')
         self.fnames.fields       = os.path.join(self.dirnames.field_boundary, 'fields.gpkg')
-        self.fnames.hrus         = os.path.join(self.dirnames.swat_sims,      'hrus.gpkg')
-        self.fnames.field_hrugis = os.path.join(self.dirnames.swat_sims,      'hru_to_field_key.csv')
-        self.fnames.swatsims     = os.path.join(self.dirnames.swat_sims,      'swatsims.csv')
+        self.fnames.hrus         = os.path.join(self.dirnames.swat,           'hrus.gpkg')
+        self.fnames.field_hrugis = os.path.join(self.dirnames.swat,           'hru_to_field_key.csv')
+
+    def _remove_whitespace_outside_quotes(self,line:str):
+        result = []
+        in_quote = False
+        quote_char = None
+        for char in line:
+            if char in ('"', "'"):
+                if in_quote and quote_char == char:
+                    in_quote = False
+                else:
+                    in_quote = True
+                    quote_char = char
+                result.append(char)
+            elif not in_quote and char.isspace():
+                continue
+            else:
+                result.append(char)
+        return ''.join(result)
 
     def _read_namelist(self,fname_namelist:str):
         """Read namelist file into generic dictionary"""
@@ -84,7 +105,7 @@ class ACPNamelist:
         namelist_lines = list(open(self.fnames.namelist,'r'))
         for l in namelist_lines:
             try:
-                l0 = l.replace('\n','').replace(' ','')
+                l0 = self._remove_whitespace_outside_quotes(line=l)
                 if len(l0) > 0:
                     if str(l[0:1]).find('#') == -1:
                         l1 = l0.split('=')
@@ -100,7 +121,7 @@ class ACPNamelist:
                             var_vals[i] = val
                         self.vars.file_inputs[var_name] = var_vals
             except:
-                sys.exit('ERROR could not read namelist.txt line: ',l)
+                sys.exit('ERROR could not read namelist.txt line: '+l)
         for var_name in self.vars.file_inputs:
             if isinstance(self.vars.file_inputs[var_name],list) and len(self.vars.file_inputs[var_name]) == 1:
                 self.vars.file_inputs[var_name] = self.vars.file_inputs[var_name][0]
@@ -110,22 +131,29 @@ class ACPNamelist:
         name_project_dir      = 'project_directory'
         name_huc12s           = 'huc12_ids'
         name_acre_dir         = 'acre_directory'
-        name_swat_outputs     = 'swat_output_hru_files'
+        name_swat_output_hru  = 'swat_output_hru_files'
         name_swat_hru_spatial = 'swat_hru_spatial_boundary_files'
         name_field_bounds     = 'field_boundary_directory'
         name_overwrite        = 'intermediate_overwrite'
         name_verbose          = 'verbose'
-        req = [name_huc12s,name_project_dir,name_acre_dir,name_swat_outputs,name_swat_hru_spatial,name_field_bounds]
+        name_cost_file        = 'cost_file'
+        name_acp_types        = 'acp_types'
+        name_swat_output_rch  = 'swat_output_rch_files'
+        req = [name_huc12s,name_project_dir,name_acre_dir,name_swat_output_hru,name_swat_output_rch,name_swat_hru_spatial,name_field_bounds,name_cost_file]
         for name in req:
             if name not in self.vars.file_inputs:
                 sys.exit('ERROR required variable '+name+' not found in namelist file')
         self.dirnames.project = self.vars.file_inputs[name_project_dir]
         self.vars.input_huc12_ids = self.vars.file_inputs[name_huc12s]
         self.dirnames.acre_data = self.vars.file_inputs[name_acre_dir]
-        self.vars.input_swat_outputs = self.vars.file_inputs[name_swat_outputs]
+        self.vars.input_swat_output_hru = self.vars.file_inputs[name_swat_output_hru]
         self.vars.input_hru_shps = self.vars.file_inputs[name_swat_hru_spatial]
+        self.vars.input_swat_output_rch = self.vars.file_inputs[name_swat_output_rch]
         self.vars.input_fields = self.vars.file_inputs[name_field_bounds]
+        self.fnames.cost = self.vars.file_inputs[name_cost_file]
         if name_overwrite in self.vars.file_inputs and self.vars.file_inputs[name_overwrite].upper().find('TRUE') != -1:
             self.vars.overwrite_flag = True
         if name_verbose in self.vars.file_inputs and self.vars.file_inputs[name_verbose].upper().find('TRUE') != -1:
             self.vars.verbose = True
+        if name_acp_types in self.vars.file_inputs:
+            self.vars.acp_types = self.vars.file_inputs[name_acp_types]

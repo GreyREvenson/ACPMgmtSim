@@ -26,7 +26,12 @@ class ACPData:
         """Baseline nutrient data"""
         baseline_yields_kgha_ACRE      = numpy.nan
         baseline_distributions_SWAT    = numpy.nan
-        swatsims                       = numpy.nan
+        swat_output_hru                = numpy.nan
+        swat_output_rch                = numpy.nan
+        mean_annual_TN_basin_load_kgyr = numpy.nan
+        std_annual_TN_basin_load_kgyr  = numpy.nan
+        mean_annual_TP_basin_load_kgyr = numpy.nan
+        std_annual_TP_basin_load_kgyr  = numpy.nan
 
     class EfficiencyCoefficientData:
         """Effectiveness coefficient (EC) data"""
@@ -34,6 +39,10 @@ class ACPData:
         ecs_ACRE_simple                = numpy.nan
         ec_distributions_ACRE          = numpy.nan
 
+    class CoastData:
+        """ACP cost data"""
+        costdata                       = numpy.nan
+        
     class SWATOutputVariables:
         """SWAT output variable names"""
         n_vars                         = ('NSURQ','ORGN','NLAT','GWQN')
@@ -65,6 +74,7 @@ class ACPData:
         self.nutrientdata = ACPData.NutrientData()
         self.ecs          = ACPData.EfficiencyCoefficientData()
         self.swatoutvars  = ACPData.SWATOutputVariables()
+        self.costs        = ACPData.CoastData()
         
     def _init_dirs(self,acpnamelist:ACPTrajectoryNamelist.ACPNamelist):
         """Make project directories"""
@@ -77,8 +87,8 @@ class ACPData:
             os.mkdir(acpnamelist.dirnames.field_boundary)
         if not os.path.isdir(acpnamelist.dirnames.huc_boundary): 
             os.mkdir(acpnamelist.dirnames.huc_boundary)
-        if not os.path.isdir(acpnamelist.dirnames.swat_sims): 
-            os.mkdir(acpnamelist.dirnames.swat_sims)
+        if not os.path.isdir(acpnamelist.dirnames.swat): 
+            os.mkdir(acpnamelist.dirnames.swat)
         if not os.path.isdir(acpnamelist.dirnames.output): 
             os.mkdir(acpnamelist.dirnames.output)
         
@@ -95,10 +105,21 @@ class ACPData:
         """Read baseline nutrient data and ACP effectiveness coefficients (ECs)"""
         if acpnamelist.vars.verbose: print('Reading baseline nutrient data and ACP effectiveness coefficients')
         self._readBaselineNutrientYields_ACRE(acpnamelist)
-        self._readSWATSimulations(acpnamelist)
+        self._readSWATOutputHru(acpnamelist)
+        self._readSWATOutputRch(acpnamelist)
         self._setBaselineNutrientYieldDistributions_SWAT(acpnamelist)
         self._readECs_ACRE(acpnamelist)
         self._setECDistributions_ACRE(acpnamelist)
+        self._readCostInfo(acpnamelist)
+
+    def _readCostInfo(self,acpnamelist:ACPTrajectoryNamelist.ACPNamelist):
+        """Read cost information"""
+        if acpnamelist.vars.verbose: print('Reading cost information')
+        if os.path.isfile(acpnamelist.fnames.cost):
+            if acpnamelist.vars.verbose: print('    Reading: '+acpnamelist.fnames.cost)
+            self.costs.costdata = pandas.read_csv(acpnamelist.fnames.cost)
+        else:
+            print('ERROR unable to read cost file '+acpnamelist.fnames.cost)
         
     def _setDomain(self,acpnamelist:ACPTrajectoryNamelist.ACPNamelist):
         """Make or read domain spatial boundary"""
@@ -225,53 +246,69 @@ class ACPData:
         self.nutrientdata.baseline_yields_kgha_ACRE = pandas.merge(left=self.nutrientdata.baseline_yields_kgha_ACRE,right=df_fips,left_on=['state','county'],right_on=['STATE_NAME','NAME'])
         self.nutrientdata.baseline_yields_kgha_ACRE = self.nutrientdata.baseline_yields_kgha_ACRE.drop(['STATE_NAME', 'NAME'], axis=1)
 
-    def _readSWATSimulations(self,acpnamelist:ACPTrajectoryNamelist.ACPNamelist): 
+    def _readSWATOutputHru(self,acpnamelist:ACPTrajectoryNamelist.ACPNamelist): 
         """Read mean annual simulations from input swat output.hru files"""
         ## TO DO - refactor to exclude study area specific code - i.e., LEFW, UEFW, etc.
-        if acpnamelist.vars.verbose: print('Reading baseline nutrient yields from SWAT data')
-        if os.path.isfile(acpnamelist.fnames.swatsims):
-            if acpnamelist.vars.verbose: print('    Reading: '+acpnamelist.fnames.swatsims)
-            self.nutrientdata.swatsims = pandas.read_csv(acpnamelist.fnames.swatsims)
-            self.nutrientdata.swatsims.set_index('HRUGIS',inplace=True)
-        else:
-            dfs = list()
-            for fname in acpnamelist.vars.input_swat_outputs:
-                if fname.find('notill') == -1:
-                    if acpnamelist.vars.verbose: print('    Reading: '+fname)
-                    ls = list(open(fname,'r'))
-                    dt = {'HRUGIS':[10,20],'MON':[30,34],'AREAkm2':[34,45],'ORGNkg/ha':[114,125],'ORGPkg/ha':[124,135],'NSURQkg/ha':[144,155],'NLATQkg/ha':[154,165],'NO3Lkg/ha':[164,175],'NO3GWkg/ha':[174,185],'SOLPkg/ha':[184,195]}
-                    vs = {name:list() for name in dt}
-                    for i in range(9,len(ls)):
-                        if float(ls[i][dt['MON'][0]:dt['MON'][1]]) < 1900:
-                            for name in dt:
-                                if name.find('HRUGIS') != -1: v = str(ls[i][dt[name][0]:dt[name][1]]).replace(' ','')
-                                else: v = float(ls[i][dt[name][0]:dt[name][1]])
-                                vs[name].append(v)
-                    df = pandas.DataFrame(vs)
-                    modelid = -1
-                    if fname.find('LEFW') != -1: modelid = 'LEFW'
-                    elif fname.find('UEFW') != -1: modelid = 'UEFW'
-                    df['HRUGIS'] = modelid + df['HRUGIS']
-                    dfs.append(df)
-            self.nutrientdata.swatsims = pandas.concat(dfs)
-            self.nutrientdata.swatsims.set_index('HRUGIS',inplace=True)
-            self.nutrientdata.swatsims.rename(columns={'ORGNkg/ha':'ORGN','ORGPkg/ha':'ORGP','NSURQkg/ha':'NSURQ','NLATQkg/ha':'NLAT','NO3GWkg/ha':'GWQN','SOLPkg/ha':'SOLP'},inplace=True)
-            if acpnamelist.vars.verbose: print('    Making: '+acpnamelist.fnames.swatsims)
-            self.nutrientdata.swatsims.to_csv(acpnamelist.fnames.swatsims,index=True)
+        if acpnamelist.vars.verbose: print('Reading SWAT baseline nutrient data')
+        dfs = list()
+        for fname in acpnamelist.vars.input_swat_output_hru:
+            if fname.find('notill') == -1:
+                if acpnamelist.vars.verbose: print('    Reading: '+fname)
+                ls = list(open(fname,'r'))
+                dt = {'HRUGIS':[10,20],'MON':[30,34],'AREAkm2':[34,45],'ORGNkg/ha':[114,125],'ORGPkg/ha':[124,135],'NSURQkg/ha':[144,155],'NLATQkg/ha':[154,165],'NO3Lkg/ha':[164,175],'NO3GWkg/ha':[174,185],'SOLPkg/ha':[184,195]}
+                vs = {name:list() for name in dt}
+                for i in range(9,len(ls)):
+                    if float(ls[i][dt['MON'][0]:dt['MON'][1]]) < 1900:
+                        for name in dt:
+                            if name.find('HRUGIS') != -1: v = str(ls[i][dt[name][0]:dt[name][1]]).replace(' ','')
+                            else: v = float(ls[i][dt[name][0]:dt[name][1]])
+                            vs[name].append(v)
+                df = pandas.DataFrame(vs)
+                modelid = -1
+                if fname.find('LEFW') != -1: modelid = 'LEFW'
+                elif fname.find('UEFW') != -1: modelid = 'UEFW'
+                df['HRUGIS'] = modelid + df['HRUGIS']
+                dfs.append(df)
+        self.nutrientdata.swat_output_hru = pandas.concat(dfs)
+        self.nutrientdata.swat_output_hru.set_index('HRUGIS',inplace=True)
+        self.nutrientdata.swat_output_hru.rename(columns={'ORGNkg/ha':'ORGN','ORGPkg/ha':'ORGP','NSURQkg/ha':'NSURQ','NLATQkg/ha':'NLAT','NO3GWkg/ha':'GWQN','SOLPkg/ha':'SOLP'},inplace=True)
+        if acpnamelist.vars.verbose: print('    Making: '+acpnamelist.fnames.swat_output_hru)
+    
+    def _readSWATOutputRch(self,acpnamelist:ACPTrajectoryNamelist.ACPNamelist): 
+        """Read mean annual simulations from input swat output.rch files"""
+        if acpnamelist.vars.verbose: print('Reading SWAT baseline nutrient loads')
+        a, b, c = list(), list(), list()
+        if acpnamelist.vars.verbose: print('    Reading: '+fname)
+        ls = list(open(acpnamelist.vars.input_swat_output_rch,'r'))
+        for i in range(9,len(ls)):
+            sp = str(ls[i]).replace('\n','').split()
+            if int(sp[1]) == 42:
+                TIME = int(sp[3])
+                TN = float(sp[8])
+                TP = float(sp[9])
+                a.append(TIME)
+                b.append(TN)
+                c.append(TP)
+        self.nutrientdata.swat_output_rch = pandas.DataFrame({'TIME':a,'TN_kg':b,'TP_kg':c})
+        mean_annual_time = int(numpy.min(self.nutrientdata.swat_output_rch['TIME']))
+        self.nutrientdata.mean_annual_TN_basin_load_kgyr = float(self.nutrientdata.swat_output_rch.loc[(self.nutrientdata.swat_output_rch['TIME']==mean_annual_time)]['TN_kg'].item())
+        self.nutrientdata.std_annual_TN_basin_load_kgyr = numpy.std(self.nutrientdata.swat_output_rch.loc[(self.nutrientdata.swat_output_rch['TIME']>mean_annual_time)]['TN_kg']).item()
+        self.nutrientdata.mean_annual_TP_basin_load_kgyr = float(self.nutrientdata.swat_output_rch.loc[(self.nutrientdata.swat_output_rch['TIME']==mean_annual_time)]['TP_kg'].item())
+        self.nutrientdata.std_annual_TP_basin_load_kgyr = numpy.std(self.nutrientdata.swat_output_rch.loc[(self.nutrientdata.swat_output_rch['TIME']>mean_annual_time)]['TP_kg']).item()
     
     def _setBaselineNutrientYieldDistributions_SWAT(self,acpnamelist:ACPTrajectoryNamelist.ACPNamelist):
         """Set/create statistical distribution objects using SWAT simulated nutrient yields form agricultural HRUs"""
         if acpnamelist.vars.verbose: print('Making statistical distribution objects for baseline nutrient yields from SWAT simulations')
         self.nutrientdata.baseline_distributions_SWAT = dict()
-        if 'LU_CODE' not in list(self.nutrientdata.swatsims.columns):
-            if self.nutrientdata.swatsims.index.name != 'HRUGIS': self.nutrientdata.swatsims.set_index('HRUGIS',inplace=True)
+        if 'LU_CODE' not in list(self.nutrientdata.swat_output_hru.columns):
+            if self.nutrientdata.swat_output_hru.index.name != 'HRUGIS': self.nutrientdata.swat_output_hru.set_index('HRUGIS',inplace=True)
             if self.spatialdata.domain_hrus.index.name != 'HRUGIS': self.spatialdata.domain_hrus.set_index('HRUGIS',inplace=True)
-            self.nutrientdata.swatsims = self.nutrientdata.swatsims.join(other=self.spatialdata.domain_hrus[['LU_CODE']],on='HRUGIS')
+            self.nutrientdata.swat_output_hru = self.nutrientdata.swat_output_hru.join(other=self.spatialdata.domain_hrus[['LU_CODE']],on='HRUGIS')
         for name in self.swatoutvars.n_vars + self.swatoutvars.p_vars:
-            iqr = self.nutrientdata.swatsims[name].quantile(0.75)-self.nutrientdata.swatsims[name].quantile(0.25)
-            upb = self.nutrientdata.swatsims[name].quantile(0.75) + 3 * iqr
-            lwb = self.nutrientdata.swatsims[name].quantile(0.25) - 3 * iqr
-            val = self.nutrientdata.swatsims[(self.nutrientdata.swatsims[name] >= lwb)&(self.nutrientdata.swatsims[name] <= upb)&(~self.nutrientdata.swatsims['LU_CODE'].isin(['SEPT','WETN','WATR','URHD','URLD','FRSD']))][name] #['SEPT','WETN','WATR','URHD','URLD','FRSD'] #exclude these lu codes
+            iqr = self.nutrientdata.swat_output_hru[name].quantile(0.75)-self.nutrientdata.swat_output_hru[name].quantile(0.25)
+            upb = self.nutrientdata.swat_output_hru[name].quantile(0.75) + 3 * iqr
+            lwb = self.nutrientdata.swat_output_hru[name].quantile(0.25) - 3 * iqr
+            val = self.nutrientdata.swat_output_hru[(self.nutrientdata.swat_output_hru[name] >= lwb)&(self.nutrientdata.swat_output_hru[name] <= upb)&(~self.nutrientdata.swat_output_hru['LU_CODE'].isin(['SEPT','WETN','WATR','URHD','URLD','FRSD']))][name] #['SEPT','WETN','WATR','URHD','URLD','FRSD'] #exclude these lu codes
             kde = scipy.stats.gaussian_kde(val)
             xk = numpy.arange(min(val),max(val),(max(val)-min(val))*0.01)
             pk = [kde.pdf(v).item() for v in xk]
@@ -343,7 +380,7 @@ class ACPData:
         """Get baseline nutrient yields for field using raw SWAT outputs (i.e. from HRU intersecting field)"""
         if field_id in self.miscstats.dtHRUGISKeyFieldID: HRUGIS = self.miscstats.dtHRUGISKeyFieldID[field_id]
         else: HRUGIS = self.miscstats.dtHRUGISKeyFieldID[random.choice(list(self.miscstats.dtHRUGISKeyFieldID.keys()))] 
-        dt_baseline_kgha_key_parm = {parm:self.nutrientdata.swatsims.iloc[self.nutrientdata.swatsims.index==HRUGIS][parm].item() for parm in self.swatoutvars.n_vars + self.swatoutvars.p_vars}
+        dt_baseline_kgha_key_parm = {parm:self.nutrientdata.swat_output_hru.iloc[self.nutrientdata.swat_output_hru.index==HRUGIS][parm].item() for parm in self.swatoutvars.n_vars + self.swatoutvars.p_vars}
         return dt_baseline_kgha_key_parm
     
     def _get_baseline_yields_acre(self,field_id):
@@ -407,6 +444,21 @@ class ACPData:
             sys.exit('ERROR unrecognized method type')
         return dt_ecs_parm
     
+    def get_cost(self,acp_type,acp_area_ha):
+        """Get cost"""
+        dt = {'Constructed_Wetland':656,
+              'Cover_Crop':340,
+              'MIN_TILL':345,
+              'Ponds 50%':378,
+              'Ponds 75%':378,
+              'Waterway Only':412,
+              'Filterstrip':393
+              }
+        if acp_type not in dt: sys.exit('ERROR get_cost unrecognized ACP type '+acp_type)
+        rws = self.costs.costdata.loc[(self.costs.costdata['Practice_code']==dt[acp_type])]
+        rws = rws.sample(1)
+        return rws
+
     def get_folium_map(self):
         domain_centroid = self.spatialdata.domain.to_crs('+proj=cea').centroid.to_crs(self.spatialdata.domain.crs)
         domain_map = folium.Map([domain_centroid.y.iloc[0],domain_centroid.x.iloc[0]])

@@ -1,4 +1,4 @@
-import ACPTrajectoryData,copy,random,sys,numpy,matplotlib
+import ACPTrajectoryData,copy,random,sys,numpy,matplotlib,ACPTrajectoryNamelist
 
 class ACPTrajectory:
     """Class representing a single ACP management trajectory"""
@@ -33,32 +33,52 @@ class ACPTrajectory:
             self.baseline_load_kg           = list()
             self.ec                         = list()
             self.delta_load_kg              = list()
-        
-    def __init__(self,name:str,acpdata:ACPTrajectoryData.ACPData,baseline_method:str='acre pdf',ec_method:str='acre',n_acps:int=100):
+
+    class CostRecords:
+        """ACP cost records - acp_number is related to the list index in TrajectoryRecords"""
+
+        def __init__(self):
+            """init records"""
+            self.acp_number                 = list()
+            self.cost_subname               = list()
+            self.cost_actual_usd            = list()
+            self.cost_opp_usd               = list()
+            self.cost_constructed_area_ha   = list()
+            self.cost_actual_usd_cumulative = list()
+            self.cost_opp_usd_cumulative    = list()
+            self.cost_constructed_area_ha_cumulative = list()
+
+    def __init__(self,name:str,acpnamelist:ACPTrajectoryNamelist.ACPNamelist,acpdata:ACPTrajectoryData.ACPData,baseline_method:str='acre pdf',ec_method:str='acre',n_acps:int=100):
         """Initialize a ACP trajectory"""
-        self.name = name 
+        self.name = name
+        self._init_vars() 
+        self._set_selection_limits(acpnamelist,acpdata)
         self._evaluate(acpdata,baseline_method,ec_method,n_acps)
         self._post_processing()
-        
-    def _evaluate(self,acpdata:ACPTrajectoryData.ACPData,baseline_method:str,ec_method:str,n_acps:int):
-        """Evaluate the ACP trajectory"""
+
+    def _init_vars(self):
+        """init vars"""
         self.trajectory_records = ACPTrajectory.TrajectoryRecords()
         self.nutrient_form_pathway_records = ACPTrajectory.NutrientFormPathwayRecords()
+        self.cost_records = ACPTrajectory.CostRecords()
+        
+    def _set_selection_limits(self,acpnamelist:ACPTrajectoryNamelist.ACPNamelist,acpdata:ACPTrajectoryData.ACPData):
+        """Set selection limits"""
+        if isinstance(acpnamelist.vars.acp_types,list):
+            self.acp_types = acpnamelist.vars.acp_types
+        else:
+            self.acp_types = acpdata.miscstats.acp_types
+    
+    def _evaluate(self,acpdata:ACPTrajectoryData.ACPData,baseline_method:str,ec_method:str,n_acps:int):
+        """Evaluate the ACP trajectory"""
         field_ids = copy.deepcopy(acpdata.miscstats.field_ids)
         for i_project in range(n_acps):
             field_id = random.choice(field_ids)
-            acp_type = random.choice(acpdata.miscstats.acp_types)
-            baseline_tn_kg,delta_tn_kg,baseline_tp_kg,delta_tp_kg = self._calc_load_readuction(acp_number=i_project,acpdata=acpdata,field_id=field_id,
-                                                                                               acp_type=acp_type,baseline_method=baseline_method,ec_method=ec_method)
-            self.trajectory_records.acp_type.append(acp_type)
-            self.trajectory_records.county_fip.append(acpdata.miscstats.dt_fips_key_fieldid[field_id])
-            self.trajectory_records.field_id.append(field_id)
-            self.trajectory_records.field_area_ha.append(acpdata.miscstats.dt_areaha_key_fieldid[field_id])
-            self.trajectory_records.treated_area_ha.append(acpdata.miscstats.dt_areaha_key_fieldid[field_id])
-            self.trajectory_records.baseline_TN_kg.append(baseline_tn_kg)
-            self.trajectory_records.delta_TN_kg.append(delta_tn_kg)
-            self.trajectory_records.baseline_TP_kg.append(baseline_tp_kg)
-            self.trajectory_records.delta_TP_kg.append(delta_tp_kg)
+            acp_type = random.choice(self.acp_types)
+            self._calc_load_readuction(acp_number=i_project,acpdata=acpdata,
+                                       field_id=field_id,acp_type=acp_type,
+                                       baseline_method=baseline_method,ec_method=ec_method)
+            self._calc_cost(acp_number=i_project,acpdata=acpdata,field_id=field_id,acp_type=acp_type)
 
     def _post_processing(self):
         """Post processing"""
@@ -83,23 +103,41 @@ class ACPTrajectory:
         self.nutrient_form_pathway_records.baseline_load_kg           = numpy.array(self.nutrient_form_pathway_records.baseline_load_kg)
         self.nutrient_form_pathway_records.ec                         = numpy.array(self.nutrient_form_pathway_records.ec)
         self.nutrient_form_pathway_records.delta_load_kg              = numpy.array(self.nutrient_form_pathway_records.delta_load_kg)
+        self.cost_records.acp_number                                  = numpy.array(self.cost_records.acp_number)
+        self.cost_records.cost_subname                                = numpy.array(self.cost_records.cost_subname)
+        self.cost_records.cost_actual_usd                             = numpy.array(self.cost_records.cost_actual_usd)
+        self.cost_records.cost_opp_usd                                = numpy.array(self.cost_records.cost_opp_usd)
+        self.cost_records.cost_constructed_area_ha                    = numpy.array(self.cost_records.cost_constructed_area_ha)
     
     def _calc_cumulative_vars(self):
         """Calculate cumulative vars after trajectory is simulated"""
-        self.trajectory_records.treated_area_ha_cumulative = numpy.cumsum(self.trajectory_records.treated_area_ha)
-        self.trajectory_records.delta_TN_kg_cumulative     = numpy.cumsum(self.trajectory_records.delta_TN_kg)
-        self.trajectory_records.delta_TP_kg_cumulative     = numpy.cumsum(self.trajectory_records.delta_TP_kg)
+        self.trajectory_records.treated_area_ha_cumulative    = numpy.cumsum(self.trajectory_records.treated_area_ha)
+        self.trajectory_records.delta_TN_kg_cumulative        = numpy.cumsum(self.trajectory_records.delta_TN_kg)
+        self.trajectory_records.delta_TP_kg_cumulative        = numpy.cumsum(self.trajectory_records.delta_TP_kg)
+        self.cost_records.cost_actual_usd_cumulative          = numpy.cumsum(self.cost_records.cost_actual_usd)
+        self.cost_records.cost_opp_usd_cumulative             = numpy.cumsum(self.cost_records.cost_opp_usd)
+        self.cost_records.cost_constructed_area_ha_cumulative = numpy.cumsum(self.cost_records.cost_constructed_area_ha)
 
-    def _calc_cost(self,acpdata:ACPTrajectoryData.ACPData,field_id:str,acp_type:str):
+    def _calc_cost(self,acp_number:int,acpdata:ACPTrajectoryData.ACPData,field_id:str,acp_type:str):
         """Calculate ACP cost"""
-        pass
+        constant_ha_to_ac = 0.404686
+        fieldareaha = acpdata.miscstats.dt_areaha_key_fieldid[field_id]
+        cost_row = acpdata.get_cost(acp_type=acp_type,acp_area_ha=fieldareaha)
+        cost_actual_usdac = cost_row['Actual_usd_ac'].item()
+        cost_opp_usdac = cost_row['Foregone_income_usd_ac'].item()
+        cost_subname = cost_row['Name'].item()
+        cost_actual_usd = cost_actual_usdac * fieldareaha * constant_ha_to_ac
+        cost_opp_usd = cost_opp_usdac * fieldareaha * constant_ha_to_ac
+        self.cost_records.acp_number.append(acp_number)
+        self.cost_records.cost_subname.append(cost_subname)
+        self.cost_records.cost_actual_usd.append(cost_actual_usd)          
+        self.cost_records.cost_opp_usd.append(cost_opp_usd)
+        self.cost_records.cost_constructed_area_ha.append(fieldareaha)
             
     def _calc_load_readuction(self,acp_number:int,acpdata:ACPTrajectoryData.ACPData,field_id:str,acp_type:str,baseline_method:str='acre pdf',ec_method:str='acre'):
         """Calculate baseline and ACP affected change in TN and TP"""
-        delta_tn_kg = 0.
-        delta_tp_kg = 0.
-        baseline_tn_kg = 0.
-        baseline_tp_kg = 0.
+        baseline_tn_kg, baseline_tp_kg = 0., 0.
+        delta_tn_kg, delta_tp_kg = 0.,0.
         dtbasekgha = acpdata.get_baseline_yields(field_id=field_id,method=baseline_method)
         dfacpec = acpdata.get_acp_ecs(field_id=field_id,acp_type=acp_type,method=ec_method) 
         fieldareaha = acpdata.miscstats.dt_areaha_key_fieldid[field_id]
@@ -125,79 +163,91 @@ class ACPTrajectory:
             self.nutrient_form_pathway_records.baseline_load_kg.append(ibaseline_tp_kg)
             self.nutrient_form_pathway_records.ec.append(dfacpec[Parm])
             self.nutrient_form_pathway_records.delta_load_kg.append(idelta_tp_kg)
-        return baseline_tn_kg,delta_tn_kg,baseline_tp_kg,delta_tp_kg
+        self.trajectory_records.acp_type.append(acp_type)
+        self.trajectory_records.county_fip.append(acpdata.miscstats.dt_fips_key_fieldid[field_id])
+        self.trajectory_records.field_id.append(field_id)
+        self.trajectory_records.field_area_ha.append(acpdata.miscstats.dt_areaha_key_fieldid[field_id])
+        self.trajectory_records.treated_area_ha.append(acpdata.miscstats.dt_areaha_key_fieldid[field_id])
+        self.trajectory_records.baseline_TN_kg.append(baseline_tn_kg)
+        self.trajectory_records.delta_TN_kg.append(delta_tn_kg)
+        self.trajectory_records.baseline_TP_kg.append(baseline_tp_kg)
+        self.trajectory_records.delta_TP_kg.append(delta_tp_kg)
         
 class ACPTrajectorySet:
     """Class representing a set of multiple ACP management trajectories"""
 
-    def __init__(self,name:str,acpdata:ACPTrajectoryData.ACPData,baseline_method:str='acre pdf',ec_method:str='acre',n_trajectories=1,n_acps:int=100):
+    def __init__(self,name:str,acpnamelist:ACPTrajectoryNamelist.ACPNamelist,acpdata:ACPTrajectoryData.ACPData,baseline_method:str='acre pdf',ec_method:str='acre',n_trajectories=1,n_acps:int=100):
         """Initialize set of ACP trajectories"""
         self.name = name
         self.domain_areaha = acpdata.miscstats.domain_area_ha
         self.bucket = list()
         for i in range(n_trajectories):
-            self.bucket.append(ACPTrajectory(name=name+str(i+1),acpdata=acpdata,baseline_method=baseline_method,ec_method=ec_method,n_acps=n_acps))
+            self.bucket.append(ACPTrajectory(name=name+str(i+1),acpnamelist=acpnamelist,acpdata=acpdata,baseline_method=baseline_method,ec_method=ec_method,n_acps=n_acps))
 
-    def graph_delta_tn_tp(self,x_var:str='count'):
+    def graph_delta_tn_tp(self,acpdata:ACPTrajectoryData.ACPData,x_var:str='count',y_var='% mean annual load'):
         """Make trajectory line graph"""
+        xs, xtitle = list(), ''
         if x_var == 'count': 
-            fig = self._graph_delta_tn_tp_xcount()
+            for acp_traj in self.bucket:
+                _xs = numpy.arange(start=0,stop=len(acp_traj.trajectory_records.delta_TN_kg_cumulative)+1,dtype=acp_traj.trajectory_records.delta_TN_kg_cumulative.dtype)
+                #_xs = numpy.insert(_xs,0,0,0)
+                xs.append(_xs)
+            xtitle = 'Number of ACPs implemented'
         elif x_var == 'cost':
-            fig = self._graph_delta_tn_tp_xcost()
+            for acp_traj in self.bucket:
+                _xs = acp_traj.cost_records.cost_actual_usd_cumulative + acp_traj.cost_records.cost_opp_usd_cumulative
+                _xs = _xs / 1000000.
+                _xs = numpy.insert(_xs,0,0,0)
+                xs.append(_xs)
+            xtitle = 'Cumulative cost (millions of usd)'
         elif x_var == 'treated area':
-            fig = self._graph_delta_tn_tp_xtreatedarea()
+            for acp_traj in self.bucket:
+                _xs = (acp_traj.trajectory_records.treated_area_ha_cumulative/acpdata.miscstats.domain_area_ha)*100.
+                _xs = numpy.insert(_xs,0,0,0)
+                xs.append(_xs)
+            xtitle = 'Cumulative treated area (% of Watershed Area)'
         else:
             sys.exit('ERROR unrecognized x axis variable type')
-        return fig
-
-    def _graph_delta_tn_tp_xcost(self):
-        """"Make trajectory line graph"""
-        pass
-
-    def _graph_delta_tn_tp_xtreatedarea(self):
-        """"Make trajectory line graph"""
+        ys_TN, ys_TP, ytitle_TN, ytitle_TP = list(), list(), '', ''
+        if y_var == '% mean annual load':
+            for acp_traj in self.bucket:
+                _ys_TN = (acp_traj.trajectory_records.delta_TN_kg_cumulative/acpdata.nutrientdata.mean_annual_TN_basin_load_kgyr)*100.
+                _ys_TN = numpy.insert(_ys_TN,0,0,0)
+                ys_TN.append(_ys_TN)
+                _ys_TP = (acp_traj.trajectory_records.delta_TP_kg_cumulative/acpdata.nutrientdata.mean_annual_TP_basin_load_kgyr)*100.
+                _ys_TP = numpy.insert(_ys_TP,0,0,0)
+                ys_TP.append(_ys_TP)
+            ytitle_TN = 'Cumulative TN load reduction\n(% of SWAT simulated mean annual load)'
+            ytitle_TP = 'Cumulative TP load reduction\n(% of SWAT simulated mean annual load)'
+        elif y_var == 'kg yr':
+            for acp_traj in self.bucket:
+                _ys_TN = acp_traj.trajectory_records.delta_TN_kg_cumulative
+                _ys_TN = numpy.insert(_ys_TN,0,0,0)
+                ys_TN.append(_ys_TN)
+                _ys_TP = acp_traj.trajectory_records.delta_TP_kg_cumulative
+                _ys_TP = numpy.insert(_ys_TP,0,0,0)
+                ys_TP.append(_ys_TP)
+            ytitle_TN = 'Cumulative TN load reduction (kg yr)'
+            ytitle_TP = 'Cumulative TP load reduction (kg yr)'
+        else:
+            sys.exit('ERROR unrecognized y axis variable type')
         fig, (ax1,ax2) = matplotlib.pyplot.subplots(1, 2)
         fig.set_size_inches(8.5, 5)
-        for acp_traj in self.bucket:
-            _xs = (acp_traj.trajectory_records.treated_area_ha_cumulative/self.domain_areaha)*100.
-            xs = numpy.insert(_xs,0,0,0)
-            ys = numpy.insert(acp_traj.trajectory_records.delta_TN_kg_cumulative,0,0,0)
-            ax1.plot(xs,ys*-1.)
-        for acp_traj in self.bucket:
-            _xs = (acp_traj.trajectory_records.treated_area_ha_cumulative/self.domain_areaha)*100.
-            xs = numpy.insert(_xs,0,0,0)
-            ys = numpy.insert(acp_traj.trajectory_records.delta_TP_kg_cumulative,0,0,0)
-            ax2.plot(xs,ys*-1.)
-        ax1.set_xlabel('Cumulative treated area (% of Watershed Area)')
-        ax1.set_ylabel('Cumulative TN load reduction (kg/yr)')
-        ax2.set_xlabel('Cumulative treated area (% of Watershed Area)')
-        ax2.set_ylabel('Cumulative TP load reduction (kg/yr)')
-        fig.suptitle('Management trajectory impacts on TN and TP')
+        for i in range(len(xs)):
+            ax1.plot(xs[i],ys_TN[i]*-1.)
+            ax2.plot(xs[i],ys_TP[i]*-1.)
+        ax1.set_xlabel(xtitle)
+        ax1.set_ylabel(ytitle_TN)
+        if y_var == 'kg yr':
+            ax1.axhline(y=acpdata.nutrientdata.mean_annual_TN_basin_load_kgyr*-1.) #color='r', linestyle='--', linewidth=2, label='y = 0.5')
+        ax2.set_xlabel(xtitle)
+        ax2.set_ylabel(ytitle_TP)
+        if y_var == 'kg yr':
+            ax2.axhline(y=acpdata.nutrientdata.mean_annual_TP_basin_load_kgyr*-1.)
+        fig.suptitle('Simulated ACP impacts on TN and TP loads at East Fork watershed outlet')
         fig.tight_layout()
         return fig
 
-    def _graph_delta_tn_tp_xcount(self):
-        """"Make trajectory line graph"""
-        fig, (ax1,ax2) = matplotlib.pyplot.subplots(1, 2)
-        fig.set_size_inches(8.5, 5)
-        for acp_traj in self.bucket:
-            xs = numpy.arange(start=0,stop=len(acp_traj.trajectory_records.delta_TN_kg_cumulative)+1,
-                              dtype=acp_traj.trajectory_records.delta_TN_kg_cumulative.dtype)
-            ys = numpy.insert(acp_traj.trajectory_records.delta_TN_kg_cumulative,0,0,0)
-            ax1.plot(xs,ys*-1.)
-        for acp_traj in self.bucket:
-            xs = numpy.arange(start=0,stop=len(acp_traj.trajectory_records.delta_TP_kg_cumulative)+1,
-                              dtype=acp_traj.trajectory_records.delta_TP_kg_cumulative.dtype)
-            ys = numpy.insert(acp_traj.trajectory_records.delta_TP_kg_cumulative,0,0,0)
-            ax2.plot(xs,ys*-1.)
-        ax1.set_xlabel('Number of ACPs implemented')
-        ax1.set_ylabel('Cumulative TN load reduction (kg/yr)')
-        ax2.set_xlabel('Number of ACPs implemented')
-        ax2.set_ylabel('Cumulative TP load reduction (kg/yr)')
-        fig.suptitle('Management trajectory impacts on TN and TP')
-        fig.tight_layout()
-        return fig
-    
     def graph_baseline_boxplots(self):
         """Make baseline yield boxplots"""
         fig, (ax1,ax2) = matplotlib.pyplot.subplots(1, 2)
@@ -273,8 +323,9 @@ class ACPTrajectorySet:
                     ['Terraces Only','Terraces'],
                     ['Terraces And Waterway','Terraces and grassed waterways']]
         for name_pair in name_chg:
-            dt[name_pair[1]] = dt[name_pair[0]]
-            del dt[name_pair[0]]
+            if name_pair[1] in dt:
+                dt[name_pair[1]] = dt[name_pair[0]]
+                del dt[name_pair[0]]
         ax.pie(dt.values(),labels=[key+' ('+"{:.2f}".format(dt[key])+')' for key in dt])
         ax.set_title('Average number of ACPs per trajectory')
         fig.tight_layout()
