@@ -25,6 +25,7 @@ class ACPNamelist:
         swat_output_hru    = numpy.nan 
         swat_output_rch    = numpy.nan
         cost               = numpy.nan
+        eqip               = numpy.nan
         
     class VariableNames:
         """Variable names"""
@@ -139,7 +140,8 @@ class ACPNamelist:
         name_cost_file        = 'cost_file'
         name_acp_types        = 'acp_types'
         name_swat_output_rch  = 'swat_output_rch_files'
-        req = [name_huc12s,name_project_dir,name_acre_dir,name_swat_output_hru,name_swat_output_rch,name_swat_hru_spatial,name_field_bounds,name_cost_file]
+        name_eqip_prc_wtshd   = 'eqip_practice_watershed_download'
+        req = [name_huc12s,name_project_dir,name_acre_dir,name_swat_output_hru,name_swat_output_rch,name_swat_hru_spatial,name_field_bounds,name_cost_file,name_eqip_prc_wtshd]
         for name in req:
             if name not in self.vars.file_inputs:
                 sys.exit('ERROR required variable '+name+' not found in namelist file')
@@ -151,6 +153,7 @@ class ACPNamelist:
         self.vars.input_swat_output_rch = self.vars.file_inputs[name_swat_output_rch]
         self.vars.input_fields = self.vars.file_inputs[name_field_bounds]
         self.fnames.cost = self.vars.file_inputs[name_cost_file]
+        self.fnames.eqip = self.vars.file_inputs[name_eqip_prc_wtshd]
         if name_overwrite in self.vars.file_inputs and self.vars.file_inputs[name_overwrite].upper().find('TRUE') != -1:
             self.vars.overwrite_flag = True
         if name_verbose in self.vars.file_inputs and self.vars.file_inputs[name_verbose].upper().find('TRUE') != -1:
