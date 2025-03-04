@@ -1,4 +1,5 @@
-import os,numpy,pandas,geopandas,pygeohydro,ee,us,ACPNamelist,folium
+import os,numpy,pandas,geopandas,pygeohydro,ee,us,folium
+from src import ACPNamelist
         
 class ACPDataSpatial:
     """Class to hold the data"""

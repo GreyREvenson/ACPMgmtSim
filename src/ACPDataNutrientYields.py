@@ -1,4 +1,5 @@
-import os,sys,scipy,numpy,pandas,random,ACPNamelist,ACPDataSpatial
+import os,sys,scipy,numpy,pandas,random
+from src import ACPNamelist,ACPDataSpatial
 
 class ACPDistributionType(scipy.stats.rv_continuous):
     """Generic customizable distribution class - to be used to define nutrient yield and/or effectiveness coefficient distributions"""

@@ -1,4 +1,4 @@
-import os,sys,numpy,re
+import os,sys,numpy
 
 class ACPNamelist:
     """Class to hold names and user inputs"""

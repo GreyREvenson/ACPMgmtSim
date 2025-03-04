@@ -1,4 +1,5 @@
-import os,sys,numpy,pandas,random,ACPNamelist,ACPDataSpatial    
+import os,sys,numpy,pandas,random
+from src import ACPNamelist,ACPDataSpatial
 
 class ACPDataCosts:
     """Class to hold the data"""
@@ -37,6 +38,7 @@ class ACPDataCosts:
     def _read_data_custom(self,acpnamelist:ACPNamelist.ACPNamelist):
         """Read custom cost info"""
         if acpnamelist.vars.verbose: print('    Reading: '+acpnamelist.fnames.cost)
+        if not os.path.isfile(acpnamelist.fnames.cost): sys.exit('ERROR could not find cost file '+acpnamelist.fnames.cost)
         self.costs.raw = pandas.read_csv(acpnamelist.fnames.cost,low_memory=False)
         self._prep_custom_price_info()
 

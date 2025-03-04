@@ -1,4 +1,5 @@
-import copy,random,sys,numpy,matplotlib,ACPNamelist,ACPDataNutrientYields,ACPDataEffectivenessCoefficients,ACPDataCosts,ACPDataSpatial
+import copy,random,sys,numpy,matplotlib
+from src import ACPNamelist,ACPDataSpatial,ACPDataNutrientYields,ACPDataEffectivenessCoefficients,ACPDataCosts
 
 class ACPScenario:
     """Class representing a single ACP management trajectory"""
