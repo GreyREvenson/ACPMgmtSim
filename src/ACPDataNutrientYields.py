@@ -1,5 +1,5 @@
 import os,sys,scipy,numpy,pandas,random
-from src import ACPNamelist,ACPDataSpatial
+import ACPNamelist,ACPDataSpatial
 
 class ACPDistributionType(scipy.stats.rv_continuous):
     """Generic customizable distribution class - to be used to define nutrient yield and/or effectiveness coefficient distributions"""
@@ -45,7 +45,7 @@ class ACPDataNutrientYields:
     def _read_data(self,acpnamelist:ACPNamelist.ACPNamelist,acpspatial:ACPDataSpatial.ACPDataSpatial):
         if acpnamelist.vars.verbose: print('Reading data')
         if   isinstance(self.nutrientdata,ACPDataNutrientYields.ACRE): self._read_data_ACRE(acpnamelist,acpspatial)
-        elif isinstance(self.nutrientdata,ACPDataNutrientYields.SWAT): self._read_data_SWAT(acpnamelist,acpspatial)
+        elif isinstance(self.nutrientdata,ACPDataNutrientYields.SWAT): self._read_data_SWAT(acpnamelist)
 
     def _read_data_ACRE(self,acpnamelist:ACPNamelist.ACPNamelist,acpspatial:ACPDataSpatial.ACPDataSpatial):
         """Read mean annual simulations from ACRE inputs"""
@@ -69,11 +69,11 @@ class ACPDataNutrientYields:
                                                                    right=df_fips,left_on=['state','county'],right_on=['STATE_NAME','NAME'])
         self.nutrientdata.baseline_yields_kgha_ACRE = self.nutrientdata.baseline_yields_kgha_ACRE.drop(['STATE_NAME', 'NAME'], axis=1)
 
-    def _read_data_SWAT(self,acpnamelist:ACPNamelist.ACPNamelist,acpspatial:ACPDataSpatial.ACPDataSpatial):
+    def _read_data_SWAT(self,acpnamelist:ACPNamelist.ACPNamelist):
         """Read swat output data"""
         self._read_data_SWAT_outputhru(acpnamelist=acpnamelist)
         self._read_data_SWAT_outputrch(acpnamelist=acpnamelist)
-        self._set_nutrient_yield_distributions_SWAT(acpnamelist=acpnamelist,acpspatial=acpspatial)
+        self._set_nutrient_yield_distributions_SWAT(acpnamelist=acpnamelist)
 
     def get_swat_mean_annual_loads(self,subbasin_num:int):
         """Get mean annual TN and TP loads for subbasin"""
@@ -107,7 +107,8 @@ class ACPDataNutrientYields:
             if fname.find('notill') == -1:
                 if acpnamelist.vars.verbose: print('    Reading: '+fname)
                 ls = list(open(fname,'r'))
-                dt = {'HRUGIS':[10,20],
+                dt = {'LULC':[0,4],
+                      'HRUGIS':[10,20],
                       'MON':[30,34],
                       'AREAkm2':[34,45],
                       'ORGNkg/ha':[114,125],
@@ -122,6 +123,7 @@ class ACPDataNutrientYields:
                     if float(ls[i][dt['MON'][0]:dt['MON'][1]]) < 1900:
                         for name in dt:
                             if name.find('HRUGIS') != -1: v = str(ls[i][dt[name][0]:dt[name][1]]).replace(' ','')
+                            elif name.find('LULC') != -1: v = str(ls[i][dt[name][0]:dt[name][1]]).replace(' ','')
                             else: v = float(ls[i][dt[name][0]:dt[name][1]])
                             vs[name].append(v)
                 df = pandas.DataFrame(vs)
@@ -135,19 +137,16 @@ class ACPDataNutrientYields:
         rn_cols = {'ORGNkg/ha':'ORGN','ORGPkg/ha':'ORGP','NSURQkg/ha':'NSURQ','NLATQkg/ha':'NLAT','NO3GWkg/ha':'GWQN','SOLPkg/ha':'SOLP'}
         self.nutrientdata.swat_output_hru.rename(columns=rn_cols,inplace=True)
 
-    def _set_nutrient_yield_distributions_SWAT(self,acpnamelist:ACPNamelist.ACPNamelist,acpspatial:ACPDataSpatial.ACPDataSpatial):
+    def _set_nutrient_yield_distributions_SWAT(self,acpnamelist:ACPNamelist.ACPNamelist):
+        print('_set_nutrient_yield_distributions_SWAT')
         """Set/create statistical distribution objects using SWAT simulated nutrient yields form agricultural HRUs"""
         if acpnamelist.vars.verbose: print('Making statistical distribution objects for baseline nutrient yields from SWAT simulations')
         self.nutrientdata.baseline_kgha_distributions = dict()
-        if 'LU_CODE' not in list(self.nutrientdata.swat_output_hru.columns):
-            if self.nutrientdata.swat_output_hru.index.name != 'HRUGIS': self.nutrientdata.swat_output_hru.set_index('HRUGIS',inplace=True)
-            if acpspatial.spatialdata.domain_hrus.index.name != 'HRUGIS': acpspatial.spatialdata.domain_hrus.set_index('HRUGIS',inplace=True)
-            self.nutrientdata.swat_output_hru = self.nutrientdata.swat_output_hru.join(other=acpspatial.spatialdata.domain_hrus[['LU_CODE']],on='HRUGIS')
         for name in self.nutrientdata.n_vars + self.nutrientdata.p_vars:
             iqr = self.nutrientdata.swat_output_hru[name].quantile(0.75)-self.nutrientdata.swat_output_hru[name].quantile(0.25)
             upb = self.nutrientdata.swat_output_hru[name].quantile(0.75) + 3 * iqr
             lwb = self.nutrientdata.swat_output_hru[name].quantile(0.25) - 3 * iqr
-            val = self.nutrientdata.swat_output_hru[(self.nutrientdata.swat_output_hru[name] >= lwb)&(self.nutrientdata.swat_output_hru[name] <= upb)&(~self.nutrientdata.swat_output_hru['LU_CODE'].isin(['SEPT','WETN','WATR','URHD','URLD','FRSD']))][name] #['SEPT','WETN','WATR','URHD','URLD','FRSD'] #exclude these lu codes
+            val = self.nutrientdata.swat_output_hru[(self.nutrientdata.swat_output_hru[name] >= lwb)&(self.nutrientdata.swat_output_hru[name] <= upb)&(~self.nutrientdata.swat_output_hru['LULC'].isin(['SEPT','WETN','WATR','URHD','URLD','FRSD']))][name] #['SEPT','WETN','WATR','URHD','URLD','FRSD'] #exclude these lu codes
             kde = scipy.stats.gaussian_kde(val)
             xk = numpy.arange(min(val),max(val),(max(val)-min(val))*0.01)
             pk = [kde.pdf(v).item() for v in xk]

@@ -1,5 +1,5 @@
 import os,sys,scipy,numpy,pandas
-from src import ACPNamelist,ACPDataSpatial
+import ACPNamelist,ACPDataSpatial
 
 class ECDistribution(scipy.stats.rv_continuous):
     """Generic customizable distribution class"""

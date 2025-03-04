@@ -1,5 +1,5 @@
 import os,numpy,pandas,geopandas,pygeohydro,ee,us,folium
-from src import ACPNamelist
+import ACPNamelist
         
 class ACPDataSpatial:
     """Class to hold the data"""
@@ -55,8 +55,6 @@ class ACPDataSpatial:
         self._setDomain(acpnamelist)
         self._setCounties(acpnamelist)
         self._setFieldBoundaries(acpnamelist)
-        self._setHRUBoundaries(acpnamelist)
-        self._evalHRUFieldOverlap(acpnamelist)
         
     def _setDomain(self,acpnamelist:ACPNamelist.ACPNamelist):
         """Make or read domain spatial boundary"""
@@ -119,48 +117,6 @@ class ACPDataSpatial:
             self.miscstats.dt_areaha_key_fieldid = dict(zip(self.spatialdata.domain_fields['field_id'],self.spatialdata.domain_fields[acpnamelist.varnames.area_ha]))
             self.spatialdata.domain_fields.to_file(acpnamelist.fnames.fields,driver='GPKG')
         self.miscstats.field_ids = tuple(self.miscstats.dt_areaha_key_fieldid.keys())
-    
-    def _setHRUBoundaries(self,acpnamelist:ACPNamelist.ACPNamelist):
-        """Set/read HRU boundaries into gdf"""
-        if acpnamelist.vars.verbose: print('Making or reading HRU spatial boundary')
-        if os.path.isfile(acpnamelist.fnames.hrus) and not acpnamelist.vars.overwrite_flag:
-            if acpnamelist.vars.verbose: print('    Reading: '+acpnamelist.fnames.hrus)
-            self.spatialdata.domain_hrus = geopandas.read_file(acpnamelist.fnames.hrus)
-        else:
-            if acpnamelist.vars.verbose: print('    Making: '+acpnamelist.fnames.hrus)
-            hru_dfs = list()
-            for fname_swathru in acpnamelist.vars.input_hru_shps:
-                df = geopandas.read_file(fname_swathru)
-                modelid = "ERROR"
-                if fname_swathru.find('LEFW') != -1: modelid = 'LEFW'
-                if fname_swathru.find('UEFW') != -1: modelid = 'UEFW'
-                df['modelid'] = modelid
-                hru_dfs.append(df)
-            hrus = pandas.concat(hru_dfs)
-            self.spatialdata.domain_hrus = geopandas.overlay(self.spatialdata.domain,hrus.to_crs(self.spatialdata.domain.crs.to_wkt()),how='intersection')
-            self.spatialdata.domain_hrus[acpnamelist.varnames.area_ha] = self.spatialdata.domain_hrus.to_crs({'proj':'cea'})['geometry'].area * 0.0001 #confirm units are ha
-            self.spatialdata.domain_hrus.drop(['objectid','shape_Length','Shape_Area'],axis=1,inplace=True)
-            self.spatialdata.domain_hrus['HRUGIS'] = self.spatialdata.domain_hrus['modelid'] + self.spatialdata.domain_hrus['HRUGIS']
-            self.spatialdata.domain_hrus.to_file(acpnamelist.fnames.hrus,driver='GPKG')
-        
-    def _evalHRUFieldOverlap(self,acpnamelist:ACPNamelist.ACPNamelist):
-        """Determine the areal-dominant HRU for each field"""
-        if acpnamelist.vars.verbose: print('Reading or assessing areal dominant HRU for each field')
-        if os.path.isfile(acpnamelist.fnames.field_hrugis) and not acpnamelist.vars.overwrite_flag:
-            if acpnamelist.vars.verbose: print('    Reading: '+acpnamelist.fnames.field_hrugis)
-            ls = list(open(acpnamelist.fnames.field_hrugis,'r'))
-            ls = [l.replace('\n','').split(',') for l in ls] 
-            self.miscstats.dtHRUGISKeyFieldID = {int(ls[i][0]):str(ls[i][1]) for i in range(1,len(ls))}
-        else:
-            if acpnamelist.vars.verbose: print('    Making: '+acpnamelist.fnames.field_hrugis)
-            domain_fields_overlay = geopandas.overlay(self.spatialdata.domain_fields, self.spatialdata.domain_hrus.to_crs(self.spatialdata.domain_fields.crs), how='intersection')
-            max_area_rows = domain_fields_overlay.groupby("field_id")["Area"].idxmax()
-            domain_fields_overlay = domain_fields_overlay.loc[max_area_rows]
-            self.miscstats.dtHRUGISKeyFieldID = dict(zip(domain_fields_overlay['field_id'],domain_fields_overlay['HRUGIS']))
-            with open(acpnamelist.fnames.field_hrugis,'w') as openfile:
-                openfile.write('field_id,hrugis\n')
-                for field_id in self.miscstats.dtHRUGISKeyFieldID:
-                    openfile.write(str(field_id)+','+str(self.miscstats.dtHRUGISKeyFieldID[field_id])+'\n')
 
     def get_folium_map(self):
         domain_centroid = self.spatialdata.domain.to_crs('+proj=cea').centroid.to_crs(self.spatialdata.domain.crs)
@@ -174,12 +130,8 @@ class ACPDataSpatial:
         fieldsfg = folium.FeatureGroup(name='Field Boundaries')
         for _, r in self.spatialdata.domain_fields.iterrows(): 
             folium.GeoJson(data=geopandas.GeoSeries(r['geometry']).to_json(),style_function=lambda x: {"color":"black","fill": False}).add_to(fieldsfg)
-        #hrusfg = folium.FeatureGroup(name='SWAT HRU Boundaries')
-        #for _, r in domain_hrus.iterrows(): 
-        #   folium.GeoJson(data=geopandas.GeoSeries(r['geometry']).to_json(),style_function=lambda x: {"color":"grey","fill": False}).add_to(hrusfg)
         domainfg.add_to(domain_map)
         countiesfg.add_to(domain_map)
         fieldsfg.add_to(domain_map)
-        #hrusfg.add_to(domain_map)
         folium.LayerControl().add_to(domain_map)
         return domain_map

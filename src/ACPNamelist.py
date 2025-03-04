@@ -132,31 +132,36 @@ class ACPNamelist:
         name_huc12s           = 'huc12_ids'
         name_acre_dir         = 'acre_directory'
         name_swat_output_hru  = 'swat_output_hru_files'
-        name_swat_hru_spatial = 'swat_hru_spatial_boundary_files'
         name_field_bounds     = 'field_boundary_directory'
         name_overwrite        = 'intermediate_overwrite'
         name_verbose          = 'verbose'
         name_cost_file        = 'cost_file'
         name_acp_types        = 'acp_types'
+        name_swat_output_hru  = 'swat_output_hru_files'
         name_swat_output_rch  = 'swat_output_rch_files'
-        req = [name_huc12s,name_project_dir,name_acre_dir,name_swat_output_hru,name_swat_hru_spatial,name_field_bounds,name_cost_file]
+        req = [name_huc12s,name_project_dir,name_acre_dir,name_swat_output_hru,name_field_bounds,name_cost_file]
         for name in req:
-            if name not in self.vars.file_inputs:
-                sys.exit('ERROR required variable '+name+' not found in namelist file')
-        self.dirnames.project = self.vars.file_inputs[name_project_dir]
+            if name not in self.vars.file_inputs: sys.exit('ERROR required variable '+name+' not found in namelist file')
         self.vars.input_huc12_ids = self.vars.file_inputs[name_huc12s]
-        self.dirnames.acre_data = self.vars.file_inputs[name_acre_dir]
-        self.vars.input_swat_output_hru = self.vars.file_inputs[name_swat_output_hru]
-        self.vars.input_hru_shps = self.vars.file_inputs[name_swat_hru_spatial]
-        self.vars.input_fields = self.vars.file_inputs[name_field_bounds]
-        self.fnames.cost = self.vars.file_inputs[name_cost_file]
+        if name_project_dir in self.vars.file_inputs:
+            self.dirnames.project = os.path.abspath(self.vars.file_inputs[name_project_dir])
+        if name_acre_dir in self.vars.file_inputs:  
+            self.dirnames.acre_data = os.path.abspath(self.vars.file_inputs[name_acre_dir])
+        if name_field_bounds in self.vars.file_inputs:
+            self.vars.input_fields = os.path.abspath(self.vars.file_inputs[name_field_bounds])
+        if name_cost_file in self.vars.file_inputs:
+            if isinstance(self.vars.file_inputs[name_cost_file],str): self.fnames.cost = os.path.abspath(self.vars.file_inputs[name_cost_file])
+            else: self.fnames.cost = [os.path.abspath(fname) for fname in self.vars.file_inputs[name_cost_file]]
+        if name_acp_types in self.vars.file_inputs:
+            if isinstance(self.vars.file_inputs[name_acp_types],str): self.vars.acp_types = [self.vars.file_inputs[name_acp_types]]
+            else: self.vars.acp_types = self.vars.file_inputs[name_acp_types]
+        if name_swat_output_hru in self.vars.file_inputs:
+            if isinstance(self.vars.file_inputs[name_swat_output_hru],str): self.vars.input_swat_output_rch = [os.path.abspath(self.vars.file_inputs[name_swat_output_hru])]
+            else: self.vars.input_swat_output_hru = [os.path.abspath(fname) for fname in self.vars.file_inputs[name_swat_output_hru]]
+        if name_swat_output_rch in self.vars.file_inputs:
+            if isinstance(self.vars.file_inputs[name_swat_output_rch],str): self.vars.input_swat_output_rch = [os.path.abspath(self.vars.file_inputs[name_swat_output_rch])]
+            else: self.vars.input_swat_output_rch = [os.path.abspath(fname) for fname in self.vars.file_inputs[name_swat_output_rch]]
         if name_overwrite in self.vars.file_inputs and self.vars.file_inputs[name_overwrite].upper().find('TRUE') != -1:
             self.vars.overwrite_flag = True
         if name_verbose in self.vars.file_inputs and self.vars.file_inputs[name_verbose].upper().find('TRUE') != -1:
             self.vars.verbose = True
-        if name_acp_types in self.vars.file_inputs:
-            if isinstance(self.vars.file_inputs[name_acp_types],str): self.vars.acp_types = [self.vars.file_inputs[name_acp_types]]
-            else: self.vars.acp_types = self.vars.file_inputs[name_acp_types]
-        if name_swat_output_rch in self.vars.file_inputs:
-            if isinstance(self.vars.file_inputs[name_swat_output_rch],str): self.vars.input_swat_output_rch = [self.vars.file_inputs[name_swat_output_rch]]
-            else: self.vars.input_swat_output_rch = self.vars.file_inputs[name_swat_output_rch]

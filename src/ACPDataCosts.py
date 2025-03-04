@@ -1,5 +1,5 @@
 import os,sys,numpy,pandas,random
-from src import ACPNamelist,ACPDataSpatial
+import ACPNamelist,ACPDataSpatial
 
 class ACPDataCosts:
     """Class to hold the data"""

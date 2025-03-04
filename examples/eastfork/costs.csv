@@ -1,0 +1,20 @@
+Practice_code,Name,EQIP_usd_ac,Actual_usd_ac,Foregone_income_usd_ac
+340,Cover crop (basic),62.62,83.49,0
+340,Cover crop (winter kill species),35.7,47.6,0
+393,Filter Strip (Introduced species),127.24,169.62,422.15
+393,Filter Strip (native species),122.13,162.83,422.15
+393,Filter Strip (Introduced species - forgone income),549.37,591.76,422.15
+393,Filter Strip (Native species - forgone income),561.38,607.78,422.15
+412,Grassed waterway (<35 foot top width),2421.09,3089.93,422.15
+412,Grassed waterway (35-55 foot topwidth),2555.51,3268.64,422.15
+412,Grassed waterway (>55 foot topwidth),3075.68,3962.76,422.15
+412,Grassed waterway (<35 foot topwidth with checks),3160.43,4075.03,422.15
+412,Grassed waterway (35-55 foot topwidth with checks),3390.66,4382.15,422.15
+412,Grassed waterway (>55 foot topwidth with checks),3863.64,5013.36,422.15
+329,Residue Management (No-Till/Strip Till),14.65,19.53,0
+345,Residue Management (Reduced Till),15.56,20.74,0
+656,Constructed wetland (Dense planting),9841.54,13059.85,422.15
+657,Wetland restoration (Depression Sediment Removal and Ditch Plug),2399.02,3057.99,422.15
+657,Wetland restoration (Riverine Channel and Floodplain Restoration ),1177.49,1476.19,422.15
+657,Wetland restoration (Vernal Pool),7918.69,,422.15
+657,Wetland restoration (Riverine - oxbow wetland),19748.81,,422.15

@@ -1,0 +1,33 @@
+# ACRE (Agricultural Conservation Reduction Estimator) 
+# SWAT (Soil and Water Assessment Tool)
+
+# project directory
+project_directory = ".\"
+
+# ACRE data directory
+acre_directory = "C:\Users\GEVENSON\Data\acre\ACRE_0.5_Download\ACRE_0.5_Download\Data"
+
+# field boundary parent directory
+field_boundary_directory = "C:\Users\GEVENSON\Data\fields\us_counties\counties-final"
+
+# HUC12s in domain
+huc12_ids = '050902021002', '050902021001', '050902021003', '050902021004', '050902021006', '050902021005', '050902021101', '050902021301', '050902021303', '050902021102', '050902021302', '050902021103', '050902021304', '050902021305', '050902021204', '050902021203', '050902021201', '050902021202'
+
+# SWAT output.hru files
+swat_output_hru_files = '.\swat\LEFW_output_annual_notill_10112024.hru', '.\swat\LEFW_output_annual_till_10112024.hru', '.\swat\UEFW_output_annual_notill_10102024.hru', '.\swat\UEFW_output_annual_till_10102024.hru'
+
+# SWAT output.rch files
+swat_output_rch_files = '.\swat\LEFW_2018_annual_notill.rch'
+
+# flag to overwrite/redo intermediate data processing steps/outputs
+intermediate_overwrite = 'False'
+
+# path to cost estimate data
+cost_file = 'costs.csv'
+
+# limit acp selection to these ACP types
+acp_types = 'Constructed_Wetland','Cover_Crop','MIN_TILL','Waterway Only','Filterstrip'
+
+# flag to print additional user messages
+verbose = 'False'
+
