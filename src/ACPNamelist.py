@@ -61,7 +61,6 @@ class ACPNamelist:
 
     def _set_subdirectory_and_file_names(self):
         """Set project subdirectory names"""
-        self.dir
         self.dirnames.spatial = os.path.join(self.dirnames.project,'spatial')
         self.dirnames.swat    = os.path.join(self.dirnames.project,'swat')
         self.dirnames.output  = os.path.join(self.dirnames.project,'outputs')
@@ -70,7 +69,7 @@ class ACPNamelist:
         """Set static files names for intermediate output files"""
         self.fnames.domain       = os.path.join(self.dirnames.spatial,   'domain.gpkg')
         self.fnames.hucs         = os.path.join(self.dirnames.spatial,   'hucs.gpkg')
-        self.fnames.counties     = os.path.join(self.dirnames.spatial,   'us_counties.gpkg')
+        self.fnames.counties     = os.path.join(self.dirnames.spatial,   'counties.gpkg')
         self.fnames.fields       = os.path.join(self.dirnames.spatial,   'fields.gpkg')
         self.fnames.hrus         = os.path.join(self.dirnames.swat,      'hrus.gpkg')
 

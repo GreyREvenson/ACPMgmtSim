@@ -138,7 +138,6 @@ class ACPDataNutrientYields:
         self.nutrientdata.swat_output_hru.rename(columns=rn_cols,inplace=True)
 
     def _set_nutrient_yield_distributions_SWAT(self,acpnamelist:ACPNamelist.ACPNamelist):
-        print('_set_nutrient_yield_distributions_SWAT')
         """Set/create statistical distribution objects using SWAT simulated nutrient yields form agricultural HRUs"""
         if acpnamelist.vars.verbose: print('Making statistical distribution objects for baseline nutrient yields from SWAT simulations')
         self.nutrientdata.baseline_kgha_distributions = dict()
