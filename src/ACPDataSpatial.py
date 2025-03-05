@@ -38,12 +38,8 @@ class ACPDataSpatial:
         if acpnamelist.vars.verbose: print('Making project directories')
         if not os.path.isdir(acpnamelist.dirnames.project): 
             os.mkdir(acpnamelist.dirnames.project)
-        if not os.path.isdir(acpnamelist.dirnames.county_boundary): 
-            os.mkdir(acpnamelist.dirnames.county_boundary)
-        if not os.path.isdir(acpnamelist.dirnames.field_boundary): 
-            os.mkdir(acpnamelist.dirnames.field_boundary)
-        if not os.path.isdir(acpnamelist.dirnames.huc_boundary): 
-            os.mkdir(acpnamelist.dirnames.huc_boundary)
+        if not os.path.isdir(acpnamelist.dirnames.spatial): 
+            os.mkdir(acpnamelist.dirnames.spatial)
         if not os.path.isdir(acpnamelist.dirnames.swat): 
             os.mkdir(acpnamelist.dirnames.swat)
         if not os.path.isdir(acpnamelist.dirnames.output): 
@@ -71,6 +67,7 @@ class ACPDataSpatial:
             self.spatialdata.domain_huc12s = geopandas.read_file(acpnamelist.fnames.hucs)
             self.spatialdata.domain = self.spatialdata.domain_huc12s.dissolve()
             self.spatialdata.domain.to_file(acpnamelist.fnames.domain, driver="GPKG")
+            self.spatialdata.domain = self.spatialdata.domain.to_crs({'proj':'cea'})
             self.spatialdata.domain[acpnamelist.varnames.area_ha] = self.spatialdata.domain.to_crs({'proj':'cea'})['geometry'].area * 0.0001 #confirm units are ha
             self.miscstats.domain_area_ha = float(self.spatialdata.domain[acpnamelist.varnames.area_ha].item())
             
@@ -88,6 +85,7 @@ class ACPDataSpatial:
             us_counties = geopandas.GeoDataFrame.from_features(ee.FeatureCollection(us_counties_fc).getInfo())
             us_counties = us_counties[us_counties.STATEFP != '11'] # remove wash dc
             us_counties['STATE_NAME'] = [str(us.states.lookup(r['STATEFP']).name).title() for _,r in us_counties.iterrows()]
+            us_counties = us_counties.to_crs(self.spatialdata.domain.crs)
             domain_county_intersect = geopandas.overlay(self.spatialdata.domain, us_counties, how='intersection')
             self.spatialdata.domain_counties = us_counties[us_counties["GEOID"].isin(list(set(domain_county_intersect['GEOID'])))]
             self.spatialdata.domain_counties.to_file(acpnamelist.fnames.counties)

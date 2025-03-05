@@ -7,9 +7,7 @@ class ACPNamelist:
         """Directory names"""
         project         = numpy.nan
         acre_data       = numpy.nan
-        field_boundary  = numpy.nan 
-        county_boundary = numpy.nan 
-        huc_boundary    = numpy.nan 
+        spatial         = numpy.nan
         swat            = numpy.nan 
         output          = numpy.nan 
 
@@ -63,20 +61,18 @@ class ACPNamelist:
 
     def _set_subdirectory_and_file_names(self):
         """Set project subdirectory names"""
-        self.dirnames.county_boundary = os.path.join(self.dirnames.project,'counties')
-        self.dirnames.field_boundary  = os.path.join(self.dirnames.project,'fields')
-        self.dirnames.huc_boundary    = os.path.join(self.dirnames.project,'hucs')
-        self.dirnames.swat            = os.path.join(self.dirnames.project,'swat')
-        self.dirnames.output          = os.path.join(self.dirnames.project,'output')
+        self.dir
+        self.dirnames.spatial = os.path.join(self.dirnames.project,'spatial')
+        self.dirnames.swat    = os.path.join(self.dirnames.project,'swat')
+        self.dirnames.output  = os.path.join(self.dirnames.project,'outputs')
 
     def _set_static_file_names(self):
         """Set static files names for intermediate output files"""
-        self.fnames.domain       = os.path.join(self.dirnames.huc_boundary,   'domain.gpkg')
-        self.fnames.hucs         = os.path.join(self.dirnames.huc_boundary,   'hucs.gpkg')
-        self.fnames.counties     = os.path.join(self.dirnames.county_boundary,'us_counties.gpkg')
-        self.fnames.fields       = os.path.join(self.dirnames.field_boundary, 'fields.gpkg')
-        self.fnames.hrus         = os.path.join(self.dirnames.swat,           'hrus.gpkg')
-        self.fnames.field_hrugis = os.path.join(self.dirnames.swat,           'hru_to_field_key.csv')
+        self.fnames.domain       = os.path.join(self.dirnames.spatial,   'domain.gpkg')
+        self.fnames.hucs         = os.path.join(self.dirnames.spatial,   'hucs.gpkg')
+        self.fnames.counties     = os.path.join(self.dirnames.spatial,   'us_counties.gpkg')
+        self.fnames.fields       = os.path.join(self.dirnames.spatial,   'fields.gpkg')
+        self.fnames.hrus         = os.path.join(self.dirnames.swat,      'hrus.gpkg')
 
     def _remove_whitespace_outside_quotes(self,line:str):
         result = []
