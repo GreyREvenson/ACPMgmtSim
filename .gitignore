@@ -162,3 +162,8 @@ cython_debug/
 #.idea/
 
 ./cache
+
+/examples/eastfork/spatial/
+/examples/eastfork/cache/
+/examples/eastfork/outputs/
+/examples/eastfork/swat/
