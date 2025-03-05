@@ -63,11 +63,11 @@ class ACPNamelist:
 
     def _set_subdirectory_and_file_names(self):
         """Set project subdirectory names"""
-        self.dirnames.county_boundary = os.path.join(self.dirnames.project,'Counties')
-        self.dirnames.field_boundary  = os.path.join(self.dirnames.project,'Fields')
-        self.dirnames.huc_boundary    = os.path.join(self.dirnames.project,'HUCs')
-        self.dirnames.swat            = os.path.join(self.dirnames.project,'SWAT')
-        self.dirnames.output          = os.path.join(self.dirnames.project,'Output')
+        self.dirnames.county_boundary = os.path.join(self.dirnames.project,'counties')
+        self.dirnames.field_boundary  = os.path.join(self.dirnames.project,'fields')
+        self.dirnames.huc_boundary    = os.path.join(self.dirnames.project,'hucs')
+        self.dirnames.swat            = os.path.join(self.dirnames.project,'swat')
+        self.dirnames.output          = os.path.join(self.dirnames.project,'output')
 
     def _set_static_file_names(self):
         """Set static files names for intermediate output files"""

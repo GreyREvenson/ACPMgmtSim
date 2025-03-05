@@ -23,7 +23,7 @@ swat_output_rch_files = '.\swat\LEFW_2018_annual_notill.rch'
 intermediate_overwrite = 'False'
 
 # path to cost estimate data
-cost_file = 'costs.csv'
+cost_file = '.\costs\custom_cost_menu.csv'
 
 # limit acp selection to these ACP types
 acp_types = 'Constructed_Wetland','Cover_Crop','MIN_TILL','Waterway Only','Filterstrip'
