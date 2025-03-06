@@ -67,9 +67,6 @@ class ACPDataSpatial:
             self.spatialdata.domain_huc12s = geopandas.read_file(acpnamelist.fnames.hucs)
             self.spatialdata.domain = self.spatialdata.domain_huc12s.dissolve()
             self.spatialdata.domain.to_file(acpnamelist.fnames.domain, driver="GPKG")
-            print('domain crs')
-            print(self.spatialdata.domain.crs)
-            #self.spatialdata.domain = self.spatialdata.domain.to_crs({'proj':'cea'})
             self.spatialdata.domain[acpnamelist.varnames.area_ha] = self.spatialdata.domain.to_crs({'proj':'cea'})['geometry'].area * 0.0001 #confirm units are ha
             self.miscstats.domain_area_ha = float(self.spatialdata.domain[acpnamelist.varnames.area_ha].item())
             

@@ -104,34 +104,33 @@ class ACPDataNutrientYields:
         if acpnamelist.vars.verbose: print('Reading SWAT baseline HRU nutrient data')
         dfs = list()
         for fname in acpnamelist.vars.input_swat_output_hru:
-            if fname.find('notill') == -1:
-                if acpnamelist.vars.verbose: print('    Reading: '+fname)
-                ls = list(open(fname,'r'))
-                dt = {'LULC':[0,4],
-                      'HRUGIS':[10,20],
-                      'MON':[30,34],
-                      'AREAkm2':[34,45],
-                      'ORGNkg/ha':[114,125],
-                      'ORGPkg/ha':[124,135],
-                      'NSURQkg/ha':[144,155],
-                      'NLATQkg/ha':[154,165],
-                      'NO3Lkg/ha':[164,175],
-                      'NO3GWkg/ha':[174,185],
-                      'SOLPkg/ha':[184,195]}
-                vs = {name:list() for name in dt}
-                for i in range(9,len(ls)):
-                    if float(ls[i][dt['MON'][0]:dt['MON'][1]]) < 1900:
-                        for name in dt:
-                            if name.find('HRUGIS') != -1: v = str(ls[i][dt[name][0]:dt[name][1]]).replace(' ','')
-                            elif name.find('LULC') != -1: v = str(ls[i][dt[name][0]:dt[name][1]]).replace(' ','')
-                            else: v = float(ls[i][dt[name][0]:dt[name][1]])
-                            vs[name].append(v)
-                df = pandas.DataFrame(vs)
-                modelid = -1
-                if fname.find('LEFW') != -1: modelid = 'LEFW'
-                elif fname.find('UEFW') != -1: modelid = 'UEFW'
-                df['HRUGIS'] = modelid + df['HRUGIS']
-                dfs.append(df)
+            if acpnamelist.vars.verbose: print('    Reading: '+fname)
+            ls = list(open(fname,'r'))
+            dt = {'LULC':[0,4],
+                    'HRUGIS':[10,20],
+                    'MON':[30,34],
+                    'AREAkm2':[34,45],
+                    'ORGNkg/ha':[114,125],
+                    'ORGPkg/ha':[124,135],
+                    'NSURQkg/ha':[144,155],
+                    'NLATQkg/ha':[154,165],
+                    'NO3Lkg/ha':[164,175],
+                    'NO3GWkg/ha':[174,185],
+                    'SOLPkg/ha':[184,195]}
+            vs = {name:list() for name in dt}
+            for i in range(9,len(ls)):
+                if float(ls[i][dt['MON'][0]:dt['MON'][1]]) < 1900:
+                    for name in dt:
+                        if name.find('HRUGIS') != -1: v = str(ls[i][dt[name][0]:dt[name][1]]).replace(' ','')
+                        elif name.find('LULC') != -1: v = str(ls[i][dt[name][0]:dt[name][1]]).replace(' ','')
+                        else: v = float(ls[i][dt[name][0]:dt[name][1]])
+                        vs[name].append(v)
+            df = pandas.DataFrame(vs)
+            modelid = -1
+            if fname.find('LEFW') != -1: modelid = 'LEFW'
+            elif fname.find('UEFW') != -1: modelid = 'UEFW'
+            df['HRUGIS'] = modelid + df['HRUGIS']
+            dfs.append(df)
         self.nutrientdata.swat_output_hru = pandas.concat(dfs)
         self.nutrientdata.swat_output_hru.set_index('HRUGIS',inplace=True)
         rn_cols = {'ORGNkg/ha':'ORGN','ORGPkg/ha':'ORGP','NSURQkg/ha':'NSURQ','NLATQkg/ha':'NLAT','NO3GWkg/ha':'GWQN','SOLPkg/ha':'SOLP'}
